@@ -217,6 +217,28 @@
                 </div>
             </div>
 
+            <!-- DELAY CHARTS SECTION -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+                <div class="glass-card p-6 rounded-[2.5rem] border border-rose-100 dark:border-rose-800 shadow-sm">
+                    <div class="flex items-center gap-2 mb-6">
+                        <i data-lucide="bar-chart" class="w-4 h-4 text-rose-500"></i>
+                        <h4 class="text-[10px] font-black uppercase text-rose-400 tracking-widest">Delay รายเดือน</h4>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="chart-delay-monthly"></canvas>
+                    </div>
+                </div>
+                <div class="glass-card p-6 rounded-[2.5rem] border border-rose-100 dark:border-rose-800 shadow-sm">
+                    <div class="flex items-center gap-2 mb-6">
+                        <i data-lucide="activity" class="w-4 h-4 text-rose-500"></i>
+                        <h4 class="text-[10px] font-black uppercase text-rose-400 tracking-widest">Delay รายวัน (7 วัน)</h4>
+                    </div>
+                    <div class="chart-wrapper">
+                        <canvas id="chart-delay-daily"></canvas>
+                    </div>
+                </div>
+            </div>
+
             <div class="mt-8 space-y-3">
                 <div class="flex items-center gap-2 px-1"><i data-lucide="list" class="w-4 h-4 text-primary"></i><h3 class="text-sm font-black uppercase tracking-widest">Orders Summary</h3></div>
                 <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
@@ -571,6 +593,8 @@
         function initDashboardCharts() {
             const ctxMonthly = document.getElementById('chart-monthly').getContext('2d');
             const ctxDaily = document.getElementById('chart-daily-trend').getContext('2d');
+            const ctxDelayMonthly = document.getElementById('chart-delay-monthly').getContext('2d');
+            const ctxDelayDaily = document.getElementById('chart-delay-daily').getContext('2d');
             const isDark = document.documentElement.classList.contains('dark');
 
             myCharts.monthly = new Chart(ctxMonthly, {
@@ -598,25 +622,61 @@
                     }
                 }
             });
+
+            myCharts.delayMonthly = new Chart(ctxDelayMonthly, {
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'Delay รายเดือน', backgroundColor: '#ef4444', borderRadius: 8, data: [] }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } },
+                        y: { grid: { color: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(239,68,68,0.08)' }, ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
+
+            myCharts.delayDaily = new Chart(ctxDelayDaily, {
+                type: 'line',
+                data: { labels: [], datasets: [{ label: 'Delay รายวัน', borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.4, borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#ef4444', data: [] }] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } },
+                        y: { grid: { color: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(239,68,68,0.08)' }, ticks: { font: { size: 9 } } }
+                    }
+                }
+            });
         }
 
         async function updateChartsData() {
             const logs = await db.history.toArray();
-            
+            const orders = await db.orders.toArray();
             // 1. Monthly History (Full Year)
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             const monthlyStats = new Array(12).fill(0);
-            
             logs.forEach(log => {
                 const date = new Date(log.timestamp);
                 const items = JSON.parse(log.itemsJson);
                 const qty = items.reduce((s, i) => s + i.qty, 0);
                 monthlyStats[date.getMonth()] += qty;
             });
-
             myCharts.monthly.data.labels = months;
             myCharts.monthly.data.datasets[0].data = monthlyStats;
             myCharts.monthly.update();
+
+            // 1.1 Delay Monthly (Full Year)
+            const delayMonthlyStats = new Array(12).fill(0);
+            orders.forEach(order => {
+                if (order.qty > 0 && order.deliveryDate < todayStr) {
+                    const date = new Date(order.deliveryDate);
+                    delayMonthlyStats[date.getMonth()] += order.qty;
+                }
+            });
+            myCharts.delayMonthly.data.labels = months;
+            myCharts.delayMonthly.data.datasets[0].data = delayMonthlyStats;
+            myCharts.delayMonthly.update();
 
             // 2. Daily Trend (Last 7 Days)
             const last7Days = [];
@@ -633,10 +693,17 @@
                     return acc + items.reduce((s, i) => s + i.qty, 0);
                 }, 0);
             });
-
             myCharts.daily.data.labels = last7Days.map(d => d.split('-').slice(1).reverse().join('/'));
             myCharts.daily.data.datasets[0].data = dailyStats;
             myCharts.daily.update();
+
+            // 2.1 Delay Daily (Last 7 Days)
+            const delayDailyStats = last7Days.map(dateStr => {
+                return orders.filter(o => o.qty > 0 && o.deliveryDate === dateStr).reduce((sum, o) => sum + o.qty, 0);
+            });
+            myCharts.delayDaily.data.labels = last7Days.map(d => d.split('-').slice(1).reverse().join('/'));
+            myCharts.delayDaily.data.datasets[0].data = delayDailyStats;
+            myCharts.delayDaily.update();
         }
 
         // Core UI Logic
