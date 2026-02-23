@@ -499,16 +499,7 @@
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs min-w-[800px]">
-                        <thead class="bg-slate-50 dark:bg-slate-800/50 font-black text-slate-400 uppercase">
-                            <tr>
-                                <th class="px-6 py-5">Customer</th>
-                                <th class="px-6 py-5">Kanban ID</th>
-                                <th class="px-6 py-5">Sale Part / Order</th>
-                                <th class="px-6 py-5 text-center">Delivery Date</th>
-                                <th class="px-6 py-5 text-center">Shipped</th>
-                                <th class="px-6 py-5 text-right">Remaining</th>
-                            </tr>
-                        </thead>
+                        <thead id="stock-table-head" class="bg-slate-50 dark:bg-slate-800/50 font-black text-slate-400 uppercase"></thead>
                         <tbody id="stock-table-body" class="divide-y divide-slate-50 dark:divide-slate-800"></tbody>
                     </table>
                 </div>
@@ -538,10 +529,7 @@
                             <h1 id="dispatch-report-title" class="text-3xl font-black tracking-tighter uppercase italic leading-none text-blue-600">Dispatch Summary Report</h1>
                             <p class="text-[10px] font-bold text-blue-400 mt-2 uppercase tracking-widest" id="dispatch-report-desc"></p>
                             <div class="mt-2 flex gap-2 items-center">
-                                <label class="text-xs font-bold text-slate-400">เลือกเดือน:</label>
-                                <select id="dispatch-month-select" class="border rounded-lg px-2 py-1 text-xs font-bold">
-                                    <!-- options will be filled by JS -->
-                                </select>
+                                <!-- ช่องเลือกเดือนถูกลบออก -->
                                 <label class="text-xs font-bold text-slate-400 ml-4">เลือกวัน:</label>
                                 <input type="date" id="dispatch-date-select" class="border rounded-lg px-2 py-1 text-xs font-bold" />
                             </div>
@@ -612,12 +600,9 @@
                         <h1 class="text-3xl font-black tracking-tighter uppercase italic leading-none text-rose-600">Delayed Delivery Report</h1>
                         <p class="text-[10px] font-bold text-rose-400 mt-2 uppercase tracking-widest">รายงานรายการค้างส่งสะสม (เฉพาะยอดที่เกินกำหนดส่ง)</p>
                         <div class="mt-2 flex gap-2 items-center">
-                            <label class="text-xs font-bold text-slate-400">เลือกเดือน:</label>
-                            <select id="delay-month-select" class="border rounded-lg px-2 py-1 text-xs font-bold">
-                                <!-- options will be filled by JS -->
-                            </select>
-                            <label class="text-xs font-bold text-slate-400 ml-4">เลือกวัน:</label>
-                            <input type="date" id="delay-date-select" class="border rounded-lg px-2 py-1 text-xs font-bold" />
+                                <!-- ช่องเลือกเดือนถูกลบออก -->
+                                <label class="text-xs font-bold text-slate-400 ml-4">เลือกวัน:</label>
+                                <input type="date" id="delay-date-select" class="border rounded-lg px-2 py-1 text-xs font-bold" />
                         </div>
                     </div>
                     <div class="text-right">
@@ -868,12 +853,36 @@
             const ctxDelayDaily = document.getElementById('chart-delay-daily').getContext('2d');
             const isDark = document.documentElement.classList.contains('dark');
 
+            // Dispatch Monthly History: Line (Total Orders) + Bar (Actual Orders)
             myCharts.monthly = new Chart(ctxMonthly, {
                 type: 'bar',
-                data: { labels: [], datasets: [{ label: 'Monthly Dispatch', backgroundColor: '#3b82f6', borderRadius: 8, data: [] }] },
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'Total Orders',
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59,130,246,0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#3b82f6',
+                            data: []
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Actual Orders',
+                            backgroundColor: '#10b981',
+                            borderRadius: 8,
+                            data: []
+                        }
+                    ]
+                },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: { legend: { display: true } },
                     scales: {
                         x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } },
                         y: { grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 } } }
@@ -881,12 +890,36 @@
                 }
             });
 
+            // 7-Day Dispatch Trend: Line (Total Orders) + Bar (Actual Orders)
             myCharts.daily = new Chart(ctxDaily, {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: 'Daily Dispatch', borderColor: '#10b981', backgroundColor: 'rgba(16, 185, 129, 0.1)', fill: true, tension: 0.4, borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#10b981', data: [] }] },
+                type: 'bar',
+                data: {
+                    labels: [],
+                    datasets: [
+                        {
+                            type: 'line',
+                            label: 'Total Orders',
+                            borderColor: '#3b82f6',
+                            backgroundColor: 'rgba(59,130,246,0.1)',
+                            fill: false,
+                            tension: 0.4,
+                            borderWidth: 3,
+                            pointRadius: 4,
+                            pointBackgroundColor: '#3b82f6',
+                            data: []
+                        },
+                        {
+                            type: 'bar',
+                            label: 'Actual Orders',
+                            backgroundColor: '#10b981',
+                            borderRadius: 8,
+                            data: []
+                        }
+                    ]
+                },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: { legend: { display: true } },
                     scales: {
                         x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } },
                         y: { grid: { color: isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' }, ticks: { font: { size: 9 } } }
@@ -926,15 +959,25 @@
             const orders = await db.orders.toArray();
             // 1. Monthly History (Full Year)
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            const monthlyStats = new Array(12).fill(0);
+            // Total Orders (ยอดที่ต้องส่ง)
+            const monthlyTotalOrders = new Array(12).fill(0);
+            orders.forEach(order => {
+                if (order.qty > 0) {
+                    const date = new Date(order.deliveryDate);
+                    monthlyTotalOrders[date.getMonth()] += order.qty;
+                }
+            });
+            // Actual Orders (ยอดที่ส่งจริง)
+            const monthlyActualOrders = new Array(12).fill(0);
             logs.forEach(log => {
                 const date = new Date(log.timestamp);
                 const items = JSON.parse(log.itemsJson);
                 const qty = items.reduce((s, i) => s + i.qty, 0);
-                monthlyStats[date.getMonth()] += qty;
+                monthlyActualOrders[date.getMonth()] += qty;
             });
             myCharts.monthly.data.labels = months;
-            myCharts.monthly.data.datasets[0].data = monthlyStats;
+            myCharts.monthly.data.datasets[0].data = monthlyTotalOrders;
+            myCharts.monthly.data.datasets[1].data = monthlyActualOrders;
             myCharts.monthly.update();
 
             // 1.1 Delay Monthly (Full Year)
@@ -956,8 +999,12 @@
                 d.setDate(d.getDate() - i);
                 last7Days.push(d.toISOString().split('T')[0]);
             }
-
-            const dailyStats = last7Days.map(dateStr => {
+            // Total Orders (ยอดที่ต้องส่ง)
+            const dailyTotalOrders = last7Days.map(dateStr => {
+                return orders.filter(o => o.qty > 0 && o.deliveryDate === dateStr).reduce((sum, o) => sum + o.qty, 0);
+            });
+            // Actual Orders (ยอดที่ส่งจริง)
+            const dailyActualOrders = last7Days.map(dateStr => {
                 const dayLogs = logs.filter(l => l.timestamp.startsWith(dateStr));
                 return dayLogs.reduce((acc, log) => {
                     const items = JSON.parse(log.itemsJson);
@@ -965,7 +1012,8 @@
                 }, 0);
             });
             myCharts.daily.data.labels = last7Days.map(d => d.split('-').slice(1).reverse().join('/'));
-            myCharts.daily.data.datasets[0].data = dailyStats;
+            myCharts.daily.data.datasets[0].data = dailyTotalOrders;
+            myCharts.daily.data.datasets[1].data = dailyActualOrders;
             myCharts.daily.update();
 
             // 2.1 Delay Daily (Last 7 Days)
@@ -1323,6 +1371,7 @@
             if(localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
             document.getElementById('current-date-display').innerText = new Date().toLocaleDateString('en-GB', { dateStyle: 'full' });
             initDashboardCharts();
+            updateChartsData();
             updateClock(); 
             showTab('dashboard');
         };
