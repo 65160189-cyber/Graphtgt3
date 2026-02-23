@@ -959,12 +959,12 @@
             const orders = await db.orders.toArray();
             // 1. Monthly History (Full Year)
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-            // Total Orders (ยอดที่ต้องส่ง)
+            // Total Orders (ยอดที่ต้องส่ง) ใช้ originQty
             const monthlyTotalOrders = new Array(12).fill(0);
             orders.forEach(order => {
-                if (order.qty > 0) {
+                if (order.originQty > 0) {
                     const date = new Date(order.deliveryDate);
-                    monthlyTotalOrders[date.getMonth()] += order.qty;
+                    monthlyTotalOrders[date.getMonth()] += order.originQty;
                 }
             });
             // Actual Orders (ยอดที่ส่งจริง)
@@ -980,7 +980,7 @@
             myCharts.monthly.data.datasets[1].data = monthlyActualOrders;
             myCharts.monthly.update();
 
-            // 1.1 Delay Monthly (Full Year)
+            // 1.1 Delay Monthly (Full Year) - History ของยอด Delay (order ที่ยังไม่ได้ส่งและ deliveryDate < วันนี้)
             const delayMonthlyStats = new Array(12).fill(0);
             orders.forEach(order => {
                 if (order.qty > 0 && order.deliveryDate < todayStr) {
@@ -992,16 +992,16 @@
             myCharts.delayMonthly.data.datasets[0].data = delayMonthlyStats;
             myCharts.delayMonthly.update();
 
-            // 2. Daily Trend (Last 7 Days)
+            // 2. Daily Trend (Last 7 Days)ห
             const last7Days = [];
             for (let i = 6; i >= 0; i--) {
                 const d = new Date();
                 d.setDate(d.getDate() - i);
                 last7Days.push(d.toISOString().split('T')[0]);
             }
-            // Total Orders (ยอดที่ต้องส่ง)
+            // Total Orders (ยอดที่ต้องส่ง) ใช้ originQty
             const dailyTotalOrders = last7Days.map(dateStr => {
-                return orders.filter(o => o.qty > 0 && o.deliveryDate === dateStr).reduce((sum, o) => sum + o.qty, 0);
+                return orders.filter(o => o.originQty > 0 && o.deliveryDate === dateStr).reduce((sum, o) => sum + o.originQty, 0);
             });
             // Actual Orders (ยอดที่ส่งจริง)
             const dailyActualOrders = last7Days.map(dateStr => {
