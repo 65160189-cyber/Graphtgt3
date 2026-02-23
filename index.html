@@ -416,7 +416,7 @@
                 <div class="glass-card p-6 rounded-[2.5rem] border border-rose-100 dark:border-rose-800 shadow-sm">
                     <div class="flex items-center gap-2 mb-6">
                         <i data-lucide="activity" class="w-4 h-4 text-rose-500"></i>
-                        <h4 class="text-[10px] font-black uppercase text-rose-400 tracking-widest">Delay รายวัน (7 วัน)</h4>
+                        <h4 class="text-[10px] font-black uppercase text-rose-400 tracking-widest">History - ออเดอร์ค้างส่งมากที่สุด</h4>
                     </div>
                     <div class="chart-wrapper">
                         <canvas id="chart-delay-daily"></canvas>
@@ -941,14 +941,34 @@
             });
 
             myCharts.delayDaily = new Chart(ctxDelayDaily, {
-                type: 'line',
-                data: { labels: [], datasets: [{ label: 'Delay รายวัน', borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', fill: true, tension: 0.4, borderWidth: 3, pointRadius: 4, pointBackgroundColor: '#ef4444', data: [] }] },
+                type: 'bar',
+                data: { labels: [], datasets: [{ label: 'จำนวนที่ค้างส่ง', backgroundColor: '#ef4444', borderColor: '#ef4444', borderWidth: 2, data: [] }] },
                 options: {
                     responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
+                    plugins: { 
+                        legend: { display: true, position: 'top', labels: { font: { size: 10, weight: 'bold' } } },
+                        tooltip: {
+                            callbacks: {
+                                afterLabel: function(context) {
+                                    const index = context.dataIndex;
+                                    const order = window.delayedOrdersData[index];
+                                    if (order) {
+                                        return [
+                                            `ลูกค้า: ${order.customer}`,
+                                            `Kanban: ${order.kanbanId || '-'}`,
+                                            `Order No: ${order.orderNo}`,
+                                            `Part: ${order.salePart}`,
+                                            `กำหนดส่ง: ${order.deliveryDate}`
+                                        ];
+                                    }
+                                    return [];
+                                }
+                            }
+                        }
+                    },
                     scales: {
-                        x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' } } },
-                        y: { grid: { color: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(239,68,68,0.08)' }, ticks: { font: { size: 9 } } }
+                        x: { grid: { display: false }, ticks: { font: { size: 9, weight: 'bold' }, maxRotation: 45, minRotation: 45 } },
+                        y: { grid: { color: isDark ? 'rgba(255,255,255,0.08)' : 'rgba(239,68,68,0.08)' }, ticks: { font: { size: 9 } }, beginAtZero: true }
                     }
                 }
             });
@@ -1016,16 +1036,24 @@
             myCharts.daily.data.datasets[1].data = dailyActualOrders;
             myCharts.daily.update();
 
-            // 2.1 Delay Daily (Last 7 Days)
-            const delayDailyStats = last7Days.map(dateStr => {
-                return orders.filter(o => o.qty > 0 && o.deliveryDate === dateStr).reduce((sum, o) => sum + o.qty, 0);
-            });
-            myCharts.delayDaily.data.labels = last7Days.map(d => d.split('-').slice(1).reverse().join('/'));
-            myCharts.delayDaily.data.datasets[0].data = delayDailyStats;
+            // 2.1 Delay Daily - History ออเดอร์ค้างส่งมากที่สุด (แสดงรายการที่ค้างส่งจริงเรียงตามจำนวนมากไปน้อย)
+            const delayedOrders = orders.filter(o => o.qty > 0 && o.deliveryDate < todayStr)
+                                     .sort((a, b) => b.qty - a.qty) // เรียงจากมากไปน้อย
+                                     .slice(0, 10); // แสดง 10 อันดับแรก
+            
+            // เก็บข้อมูลไว้สำหรับ tooltip
+            window.delayedOrdersData = delayedOrders;
+            
+            const orderLabels = delayedOrders.map((o, index) => 
+                `${index + 1}. ${o.kanbanId || o.orderNo || 'N/A'}` // แสดง KanbanID หรือ OrderNo ถ้าไม่มี KanbanID
+            );
+            const orderQuantities = delayedOrders.map(o => o.qty);
+            
+            myCharts.delayDaily.data.labels = orderLabels;
+            myCharts.delayDaily.data.datasets[0].data = orderQuantities;
             myCharts.delayDaily.update();
         }
 
-        // Core UI Logic
         async function updateDashboard() {
             const all = await db.orders.toArray();
             const logs = await db.history.toArray();
@@ -1066,6 +1094,7 @@
             const all = await db.orders.toArray();
             const delayItems = all.filter(o => o.qty > 0 && o.deliveryDate < todayStr)
                                  .sort((a,b) => a.deliveryDate.localeCompare(b.deliveryDate));
+            
             if (delayItems.length === 0) { showToast("ไม่มีรายการที่ค้างส่ง (Delay) ในขณะนี้"); return; }
 
             const reportDate = new Date().toLocaleDateString('th-TH', { 
