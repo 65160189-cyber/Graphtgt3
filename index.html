@@ -54,187 +54,321 @@
         }
 
         .chart-wrapper { position: relative; width: 100%; height: 250px; }
+        
+        /* Glow effects for dashboard cards */
+        .glow-green {
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.3), 
+                        0 0 40px rgba(34, 197, 94, 0.2),
+                        inset 0 0 20px rgba(34, 197, 94, 0.1);
+        }
+        
+        .glow-yellow {
+            box-shadow: 0 0 20px rgba(250, 204, 21, 0.3), 
+                        0 0 40px rgba(250, 204, 21, 0.2),
+                        inset 0 0 20px rgba(250, 204, 21, 0.1);
+        }
+        
+        .glow-rose {
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.3), 
+                        0 0 40px rgba(244, 63, 94, 0.2),
+                        inset 0 0 20px rgba(244, 63, 94, 0.1);
+        }
+        
+        .glow-white {
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 
+                        0 0 40px rgba(255, 255, 255, 0.3),
+                        inset 0 0 20px rgba(255, 255, 255, 0.2);
+        }
+        
+        .dark .glow-green {
+            box-shadow: 0 0 20px rgba(34, 197, 94, 0.4), 
+                        0 0 40px rgba(34, 197, 94, 0.3),
+                        inset 0 0 20px rgba(34, 197, 94, 0.2);
+        }
+        
+        .dark .glow-yellow {
+            box-shadow: 0 0 20px rgba(250, 204, 21, 0.4), 
+                        0 0 40px rgba(250, 204, 21, 0.3),
+                        inset 0 0 20px rgba(250, 204, 21, 0.2);
+        }
+        
+        .dark .glow-rose {
+            box-shadow: 0 0 20px rgba(244, 63, 94, 0.4), 
+                        0 0 40px rgba(244, 63, 94, 0.3),
+                        inset 0 0 20px rgba(244, 63, 94, 0.2);
+        }
+        
+        .dark .glow-white {
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 
+                        0 0 40px rgba(255, 255, 255, 0.4),
+                        inset 0 0 20px rgba(255, 255, 255, 0.3);
+        }
     </style>
     <script>
-                // --- Report Modal Logic ---
-                function openReportTypeModal() {
-                    document.getElementById('report-type-modal').classList.remove('hidden');
-                    lucide.createIcons();
-                }
+        // --- Report Modal Logic ---
+        function openReportTypeModal() {
+            document.getElementById('report-type-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
 
-                function openDispatchReportModal(type) {
-                    closeModal('report-type-modal');
-                    // สรุปยอดส่งของ (dispatch) รายเดือน หรือ รายวัน
-                    db.history.toArray().then(logs => {
-                        // เตรียม dropdown เดือน
-                        if (type === 'month') {
-                            // ใช้ Month Picker แทน dropdown
-                            const input = document.getElementById('dispatch-month-select');
-                            const today = new Date();
-                            const currentMonth = today.toISOString().slice(0, 7); // YYYY-MM format
-                            input.value = currentMonth;
-                            input.onchange = function() {
-                                const [year, month] = this.value.split('-').map(Number);
-                                openDispatchReportModal('month', month - 1);
-                            };
-                        }
-                        // เตรียม date picker
-                        if (type === 'day') {
-                            const input = document.getElementById('dispatch-date-select');
-                            const today = new Date().toISOString().split('T')[0];
-                            input.value = today;
-                            input.onchange = function() {
-                                openDispatchReportModal('day', null, this.value);
-                            };
-                        }
-                        let summary = {};
-                        let label = '';
-                        let desc = '';
-                        if (type === 'month') {
-                            // ใช้ข้อมูลจากกราฟ myCharts.monthly ตามเดือนที่เลือก
-                            let monthIdx = arguments[1];
-                            if (typeof monthIdx !== 'number') monthIdx = (new Date()).getMonth();
-                            if (window.myCharts && myCharts.monthly) {
-                                const months = myCharts.monthly.data.labels;
-                                const data = myCharts.monthly.data.datasets[0].data;
-                                const now = new Date();
-                                const thisYear = now.getFullYear();
-                                const monthNamesTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                                summary = {};
-                                summary[monthNamesTH[monthIdx] + ' ' + (thisYear + 543)] = data[monthIdx] || 0;
-                                label = 'สรุปยอดส่งของ (รายเดือน)';
-                                desc = 'ข้อมูลจากกราฟ Dispatch Monthly (' + monthNamesTH[monthIdx] + ' ' + (thisYear + 543) + ')';
-                            } else {
-                                label = 'สรุปยอดส่งของ (รายเดือน)';
-                                desc = 'ไม่พบข้อมูลกราฟ';
-                            }
-                        } else {
-                            // รายวัน: ตามวันที่เลือก
-                            let dateStr = arguments[2];
-                            if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
-                            let shippedToday = 0;
-                            logs.filter(l => l.timestamp.startsWith(dateStr)).forEach(l => {
-                                const items = JSON.parse(l.itemsJson);
-                                items.forEach(i => shippedToday += i.qty);
-                            });
-                            summary[dateStr] = shippedToday;
-                            label = 'สรุปยอดส่งของ (รายวัน)';
-                            desc = 'ยอด Shipped (' + dateStr.split('-').reverse().join('/') + ')';
-                        }
-                        // Render modal
-                        document.getElementById('dispatch-report-title').innerText = label;
-                        document.getElementById('dispatch-report-desc').innerText = desc;
-                        const rows = Object.keys(summary).map(day => {
-                            let showDay = day;
-                            if (type === 'month') showDay = day; // เดือนเป็นชื่อไทย
-                            else {
-                                const d = day.split('-');
-                                showDay = d[2] + '/' + d[1] + '/' + d[0];
-                            }
-                            return `<tr><td class='py-3 px-4 text-left font-bold'>${showDay}</td><td class='py-3 px-4 text-right font-black text-blue-600'>${summary[day]}</td></tr>`;
-                        }).join('');
-                        document.getElementById('dispatch-report-table').innerHTML = rows;
-                        // Summary box
-                        const days = Object.keys(summary).length;
-                        const totalUnits = Object.values(summary).reduce((a, b) => a + b, 0);
-                        document.getElementById('dispatch-total-days').innerText = days;
-                        document.getElementById('dispatch-total-units').innerText = totalUnits.toLocaleString();
-                        document.getElementById('dispatch-report-date').innerText = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                        document.getElementById('dispatch-report-modal').classList.remove('hidden');
-                        lucide.createIcons();
+        function openDispatchReportModal(type) {
+            closeModal('report-type-modal');
+            
+            // สรุปยอดส่งของ (dispatch) รายเดือน หรือ รายวัน
+            db.history.toArray().then(logs => {
+                let summary = {};
+                let label = '';
+                let desc = '';
+                
+                if (type === 'month') {
+                    // รายเดือน: ใช้เดือนปัจจุบัน
+                    const now = new Date();
+                    const monthIdx = now.getMonth();
+                    const thisYear = now.getFullYear();
+                    const monthNamesTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                    
+                    // นับจำนวนรายการที่ส่งในเดือนปัจจุบัน
+                    const currentMonthLogs = logs.filter(log => {
+                        const logDate = new Date(log.timestamp);
+                        return logDate.getMonth() === monthIdx && logDate.getFullYear() === thisYear;
                     });
+                    
+                    let totalItems = 0;
+                    currentMonthLogs.forEach(log => {
+                        const items = JSON.parse(log.itemsJson);
+                        totalItems += items.length;
+                    });
+                    
+                    summary[monthNamesTH[monthIdx] + ' ' + (thisYear + 543)] = totalItems;
+                    label = 'สรุปยอดส่งของ (รายเดือน)';
+                    desc = 'ข้อมูลจากประวัติการส่งของ (' + monthNamesTH[monthIdx] + ' ' + (thisYear + 543) + ')';
+                    
+                } else {
+                    // รายวัน: ตามวันที่เลือก
+                    let dateStr = arguments[2];
+                    if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
+                    
+                    let totalItems = 0;
+                    logs.filter(l => l.timestamp.startsWith(dateStr)).forEach(l => {
+                        const items = JSON.parse(l.itemsJson);
+                        totalItems += items.length;
+                    });
+                    
+                    summary[dateStr] = totalItems;
+                    label = 'สรุปยอดส่งของ (รายวัน)';
+                    desc = 'จำนวนรายการที่ส่ง (' + dateStr.split('-').reverse().join('/') + ')';
                 }
+                
+                // แสดง modal
+                renderDispatchReportModal(summary, label, desc);
+            });
+        }
 
-                // ปรับ openDelayReportModal ให้รองรับ type ('month' หรือ 'day')
-                async function openDelayReportModal(type = 'month') {
-                    // เตรียม dropdown เดือน
-                    db.orders.toArray().then(all => {
-                        if (type === 'month' && window.myCharts && myCharts.delayMonthly) {
-                            const months = myCharts.delayMonthly.data.labels;
-                            const now = new Date();
-                            const thisYear = now.getFullYear();
-                            const monthNamesTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                            const select = document.getElementById('delay-month-select');
-                            select.innerHTML = '';
-                            months.forEach((m, i) => {
-                                const th = monthNamesTH[i] + ' ' + (thisYear + 543);
-                                const opt = document.createElement('option');
-                                opt.value = i;
-                                opt.textContent = th;
-                                if (i === now.getMonth()) opt.selected = true;
-                                select.appendChild(opt);
-                            });
-                            select.onchange = function() {
-                                openDelayReportModal('month', parseInt(this.value));
-                            };
-                        }
-                        // เตรียม date picker
-                        if (type === 'day') {
-                            const input = document.getElementById('delay-date-select');
-                            const today = new Date().toISOString().split('T')[0];
-                            input.value = today;
-                            input.onchange = function() {
-                                openDelayReportModal('day', null, this.value);
-                            };
-                        }
-                        let summary = {};
-                        let label = '';
-                        let desc = '';
-                        if (type === 'month') {
-                            // ใช้ข้อมูลจากกราฟ myCharts.delayMonthly ตามเดือนที่เลือก
-                            let monthIdx = arguments[1];
-                            if (typeof monthIdx !== 'number') monthIdx = (new Date()).getMonth();
-                            if (window.myCharts && myCharts.delayMonthly) {
-                                const months = myCharts.delayMonthly.data.labels;
-                                const data = myCharts.delayMonthly.data.datasets[0].data;
-                                const now = new Date();
-                                const thisYear = now.getFullYear();
-                                const monthNamesTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                                summary = {};
-                                summary[monthNamesTH[monthIdx] + ' ' + (thisYear + 543)] = data[monthIdx] || 0;
-                                label = 'สรุปยอด Delay (รายเดือน)';
-                                desc = 'ข้อมูลจากกราฟ Delay Monthly (' + monthNamesTH[monthIdx] + ' ' + (thisYear + 543) + ')';
-                            } else {
-                                label = 'สรุปยอด Delay (รายเดือน)';
-                                desc = 'ไม่พบข้อมูลกราฟ';
-                            }
-                        } else {
-                            // รายวัน: ตามวันที่เลือก
-                            let dateStr = arguments[2];
-                            if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
-                            let delayToday = 0;
-                            all.filter(o => o.qty > 0 && o.deliveryDate === dateStr).forEach(o => {
-                                delayToday += o.qty;
-                            });
-                            summary[dateStr] = delayToday;
-                            label = 'สรุปยอด Delay (รายวัน)';
-                            desc = 'ยอด Delay (' + dateStr.split('-').reverse().join('/') + ')';
-                        }
-                        // Render modal
-                        document.getElementById('delay-report-title').innerText = label;
-                        document.getElementById('delay-report-desc').innerText = desc;
-                        const rows = Object.keys(summary).map(day => {
-                            let showDay = day;
-                            if (type === 'month') showDay = day; // เดือนเป็นชื่อไทย
-                            else {
-                                const d = day.split('-');
-                                showDay = d[2] + '/' + d[1] + '/' + d[0];
-                            }
-                            return `<tr><td class='py-3 px-4 text-left font-bold'>${showDay}</td><td class='py-3 px-4 text-right font-black text-rose-600'>${summary[day]}</td></tr>`;
-                        }).join('');
-                        document.getElementById('delay-report-table').innerHTML = rows;
-                        // Summary box
-                        const days = Object.keys(summary).length;
-                        const totalUnits = Object.values(summary).reduce((a, b) => a + b, 0);
-                        document.getElementById('delay-total-days').innerText = days;
-                        document.getElementById('delay-total-units').innerText = totalUnits.toLocaleString();
-                        document.getElementById('delay-report-date').innerText = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                        document.getElementById('delay-report-modal').classList.remove('hidden');
-                        lucide.createIcons();
-                    });
+        function renderDispatchReportModal(summary, label, desc) {
+            // แสดงข้อมูลใน modal
+            document.getElementById('dispatch-report-title').innerText = label;
+            document.getElementById('dispatch-report-desc').innerText = desc;
+            
+            const rows = Object.keys(summary).map(day => {
+                let showDay = day;
+                const d = day.split('-');
+                if (d.length === 3) {
+                    showDay = d[2] + '/' + d[1] + '/' + d[0];
                 }
+                return `<tr><td class='py-3 px-4 text-left font-bold'>${showDay}</td><td class='py-3 px-4 text-right font-black text-blue-600'>${summary[day]}</td></tr>`;
+            }).join('');
+            document.getElementById('dispatch-report-table').innerHTML = rows;
+            
+            // สรุปยอด
+            const days = Object.keys(summary).length;
+            const totalUnits = Object.values(summary).reduce((a, b) => a + b, 0);
+            document.getElementById('dispatch-total-days').innerText = days;
+            document.getElementById('dispatch-total-units').innerText = totalUnits.toLocaleString();
+            document.getElementById('dispatch-report-date').innerText = new Date().toLocaleDateString('th-TH', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
+            });
+            
+            document.getElementById('dispatch-report-modal').classList.remove('hidden');
+            lucide.createIcons();
+        }
+
+        function generateUnifiedReport() {
+            const selectedType = document.querySelector('input[name="report-type"]:checked').value;
+            
+            if (selectedType === 'dispatch-monthly') {
+                openDispatchReportModal('month');
+            } else if (selectedType === 'dispatch-daily') {
+                const date = document.getElementById('report-date-input').value;
+                if (!date) {
+                    showToast('กรุณาเลือกวันที่');
+                    return;
+                }
+                openDispatchReportModal('day', date);
+            } else if (selectedType === 'delay-monthly') {
+                const monthInput = document.getElementById('delay-month-select').value;
+                if (!monthInput) {
+                    showToast('กรุณาเลือกเดือน');
+                    return;
+                }
+                // แปลงจาก YYYY-MM เป็น month index (0-11)
+                const [year, month] = monthInput.split('-').map(Number);
+                openDelayReportModal('month', month - 1);
+            } else if (selectedType === 'delay-daily') {
+                const date = document.getElementById('delay-date-input').value;
+                if (!date) {
+                    showToast('กรุณาเลือกวันที่');
+                    return;
+                }
+                openDelayReportModal('day', null, date);
+            }
+        }
+
+        function initializeReportPage() {
+            // Setup event listeners for unified radio button selection
+            document.querySelectorAll('input[name="report-type"]').forEach(radio => {
+                radio.addEventListener('change', function() {
+                    // Hide all selectors first
+                    document.getElementById('report-date-selector').classList.add('hidden');
+                    document.getElementById('delay-month-selector').classList.add('hidden');
+                    document.getElementById('delay-date-selector').classList.add('hidden');
+                    
+                    // Show appropriate selector based on selection
+                    if (this.value === 'dispatch-daily') {
+                        document.getElementById('report-date-selector').classList.remove('hidden');
+                    } else if (this.value === 'delay-monthly') {
+                        document.getElementById('delay-month-selector').classList.remove('hidden');
+                    } else if (this.value === 'delay-daily') {
+                        document.getElementById('delay-date-selector').classList.remove('hidden');
+                    }
+                });
+            });
+            
+            // Initialize with default selection
+            document.querySelector('input[name="report-type"]:checked').dispatchEvent(new Event('change'));
+        }
+
+        function openDelayReportModal(type = 'month') {
+            // เตรียม dropdown เดือน
+            db.orders.toArray().then(all => {
+                if (type === 'month' && window.myCharts && myCharts.delayMonthly) {
+                    const months = myCharts.delayMonthly.data.labels;
+                    const now = new Date();
+                    const thisYear = now.getFullYear();
+                    const monthNamesTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                    const select = document.getElementById('delay-month-select');
+                    select.innerHTML = '';
+                    months.forEach((m, i) => {
+                        const th = monthNamesTH[i] + ' ' + (thisYear + 543);
+                        const opt = document.createElement('option');
+                        opt.value = i;
+                        opt.textContent = th;
+                        if (i === now.getMonth()) opt.selected = true;
+                        select.appendChild(opt);
+                    });
+                    select.onchange = function() {
+                        openDelayReportModal('month', parseInt(this.value));
+                    };
+                }
+                // เตรียม date picker
+                if (type === 'day') {
+                    const input = document.getElementById('delay-date-select');
+                    const today = new Date().toISOString().split('T')[0];
+                    input.value = today;
+                    input.onchange = function() {
+                        openDelayReportModal('day', null, this.value);
+                    };
+                }
+                let summary = {};
+                let label = '';
+                let desc = '';
+                if (type === 'month') {
+                    // ใช้ข้อมูลจากกราฟ myCharts.delayMonthly ตามเดือนที่เลือก
+                    let monthIdx = arguments[1];
+                    if (typeof monthIdx !== 'number') monthIdx = (new Date()).getMonth();
+                    if (window.myCharts && myCharts.delayMonthly) {
+                        const months = myCharts.delayMonthly.data.labels;
+                        const data = myCharts.delayMonthly.data.datasets[0].data;
+                        const now = new Date();
+                        const thisYear = now.getFullYear();
+                        const monthNamesTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
+                        summary = {};
+                        summary[monthNamesTH[monthIdx] + ' ' + (thisYear + 543)] = data[monthIdx] || 0;
+                        label = 'สรุปยอด Delay (รายเดือน)';
+                        desc = 'ข้อมูลจากกราฟ Delay Monthly (' + monthNamesTH[monthIdx] + ' ' + (thisYear + 543) + ')';
+                    } else {
+                        label = 'สรุปยอด Delay (รายเดือน)';
+                        desc = 'ไม่พบข้อมูลกราฟ';
+                    }
+                } else {
+                    // รายวัน: ตามวันที่เลือก
+                    let dateStr = arguments[2];
+                    if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
+                    let delayToday = 0;
+                    all.filter(o => o.qty > 0 && o.deliveryDate === dateStr).forEach(o => {
+                        delayToday += o.qty;
+                    });
+                    summary[dateStr] = delayToday;
+                    label = 'สรุปยอด Delay (รายวัน)';
+                    desc = 'ยอด Delay (' + dateStr.split('-').reverse().join('/') + ')';
+                }
+                // Render modal
+                document.getElementById('delay-report-title').innerText = label;
+                document.getElementById('delay-report-desc').innerText = desc;
+                const rows = Object.keys(summary).map(day => {
+                    let showDay = day;
+                    if (type === 'month') showDay = day; // เดือนเป็นชื่อไทย
+                    else {
+                        const d = day.split('-');
+                        showDay = d[2] + '/' + d[1] + '/' + d[0];
+                    }
+                    return `<tr><td class='py-3 px-4 text-left font-bold'>${showDay}</td><td class='py-3 px-4 text-right font-black text-rose-600'>${summary[day]}</td></tr>`;
+                }).join('');
+                document.getElementById('delay-report-table').innerHTML = rows;
+                // Summary box
+                const days = Object.keys(summary).length;
+                const totalUnits = Object.values(summary).reduce((a, b) => a + b, 0);
+                document.getElementById('delay-total-days').innerText = days;
+                document.getElementById('delay-total-units').innerText = totalUnits.toLocaleString();
+                document.getElementById('delay-report-date').innerText = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                document.getElementById('delay-report-modal').classList.remove('hidden');
+                lucide.createIcons();
+            });
+        }
         tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#3b82f6', accent: '#10b981' } } } }
     </script>
+    <style>
+        /* Custom CSS for date picker icons in dark mode */
+        input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+        input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            filter: invert(0.8);
+        }
+        input[type="month"]::-webkit-calendar-picker-indicator {
+            filter: invert(1);
+            cursor: pointer;
+        }
+        input[type="month"]::-webkit-calendar-picker-indicator:hover {
+            filter: invert(0.8);
+        }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) brightness(1.5);
+        }
+        .dark input[type="date"]::-webkit-calendar-picker-indicator:hover {
+            filter: invert(1) brightness(1.2);
+        }
+        .dark input[type="month"]::-webkit-calendar-picker-indicator {
+            filter: invert(1) brightness(1.5);
+        }
+        .dark input[type="month"]::-webkit-calendar-picker-indicator:hover {
+            filter: invert(1) brightness(1.2);
+        }
+    </style>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors duration-300">
 
@@ -319,7 +453,7 @@
             <button onclick="showTab('dispatch')" id="d-nav-dispatch" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left"><i data-lucide="scan-barcode" class="w-4 h-4"></i><span>Dispatch Center</span></button>
             <button onclick="showTab('stock')" id="d-nav-stock" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left"><i data-lucide="package" class="w-4 h-4"></i><span>Inventory</span></button>
             <button onclick="showTab('history')" id="d-nav-history" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left"><i data-lucide="history" class="w-4 h-4"></i><span>Logs</span></button>
-            <button onclick="showTab('report')" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left"><i data-lucide="file-text" class="w-4 h-4"></i><span>Report</span></button>
+            <button onclick="showTab('report')" id="d-nav-report" class="w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all text-left"><i data-lucide="file-text" class="w-4 h-4"></i><span>Report</span></button>
         </nav>
         <div class="pt-6 border-t dark:border-slate-800 space-y-4">
             <div class="px-4 py-3 bg-slate-50 dark:bg-slate-800 rounded-xl text-center">
@@ -348,19 +482,19 @@
             </div>
             
             <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                <div class="glass-card p-6 rounded-3xl border border-slate-100 dark:border-slate-800 flex flex-col justify-between h-36 text-white-500">
-                    <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Daily Target</p>
+                <div class="glass-card p-6 rounded-3xl border border-white dark:border-white/50 flex flex-col justify-between h-36 text-white glow-white">
+                    <p class="text-[25px] font-black uppercase tracking-widest text-white/80">Daily Target</p>
                     <h3 id="stat-daily-target" class="text-5xl font-black">500</h3>
                 </div>
-                <div class="glass-card p-6 rounded-3xl border border-green-100 dark:border-green-800 flex flex-col justify-between h-36 text-accent">
+                <div class="glass-card p-6 rounded-3xl border border-green-100 dark:border-green-800 flex flex-col justify-between h-36 text-accent glow-green">
                     <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Shipped Today</p>
                     <h3 id="stat-today-shipped" class="text-5xl font-black">0</h3>
-                </div>
-                <div class="glass-card p-6 rounded-3xl border border-yellow-100 dark:border-yellow-800 flex flex-col justify-between h-36 text-yellow-500">
+                </div> 
+                <div class="glass-card p-6 rounded-3xl border border-yellow-100 dark:border-yellow-800 flex flex-col justify-between h-36 text-yellow-500 glow-yellow">
                     <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Onplan</p>
                     <h3 id="stat-today-remaining" class="text-5xl font-black">0</h3>
                 </div>
-                <div class="glass-card p-6 rounded-3xl border border-rose-100 dark:border-rose-800 flex flex-col justify-between h-36 text-rose-500">
+                <div class="glass-card p-6 rounded-3xl border border-rose-100 dark:border-rose-800 flex flex-col justify-between h-36 text-rose-500 glow-rose">
                     <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Acc.Delay</p>
                     <h3 id="stat-overdue" class="text-5xl font-black">0</h3>
                 </div>
@@ -505,72 +639,73 @@
                 </div>
             </div>
             
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div class="glass-card p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-12 h-12 bg-blue-100 dark:bg-blue-500/20 text-blue-500 rounded-full flex items-center justify-center">
-                            <i data-lucide="truck" class="w-6 h-6"></i>
+            <div class="glass-card p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="w-12 h-12 bg-gradient-to-br from-blue-100 to-rose-100 dark:from-blue-500/20 dark:to-rose-500/20 text-transparent bg-clip-text rounded-full flex items-center justify-center">
+                            <i data-lucide="file-text" class="w-6 h-6 bg-gradient-to-br from-blue-500 to-rose-500 text-transparent bg-clip-text"></i>
                         </div>
                         <div>
-                            <h3 class="text-xl font-black">Dispatch Report</h3>
-                            <p class="text-slate-400 text-sm">Summary of shipped orders</p>
+                            <h3 class="text-xl font-black">Report Generator</h3>
+                            <p class="text-slate-400 text-sm">Dispatch & Delay reports</p>
                         </div>
                     </div>
-                    <div class="space-y-4">
+                    
+                    <div class="space-y-6">
+                        <!-- Report Type Selection -->
                         <div>
-                            <label class="text-sm font-bold text-slate-400">Report Type</label>
-                            <select id="report-type-select" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm font-bold">
-                                <option value="dispatch-monthly">Monthly Dispatch</option>
-                                <option value="dispatch-daily">Daily Dispatch</option>
-                            </select>
+                            <label class="text-sm font-bold text-slate-400">Select Report Type</label>
+                            <div class="mt-3 grid grid-cols-2 gap-3">
+                                <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all border-blue-200 dark:border-blue-800">
+                                    <input type="radio" name="report-type" value="dispatch-monthly" checked class="w-4 h-4 text-blue-500">
+                                    <div>
+                                        <span class="font-bold text-blue-600 dark:text-blue-400">Monthly Dispatch</span>
+                                        <div class="text-xs text-slate-400">สรุปยอดส่งของรายเดือน</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all border-blue-200 dark:border-blue-800">
+                                    <input type="radio" name="report-type" value="dispatch-daily" class="w-4 h-4 text-blue-500">
+                                    <div>
+                                        <span class="font-bold text-blue-600 dark:text-blue-400">Daily Dispatch</span>
+                                        <div class="text-xs text-slate-400">สรุปยอดส่งของรายวัน</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all border-rose-200 dark:border-rose-800">
+                                    <input type="radio" name="report-type" value="delay-monthly" class="w-4 h-4 text-rose-500">
+                                    <div>
+                                        <span class="font-bold text-rose-600 dark:text-rose-400">Monthly Delay</span>
+                                        <div class="text-xs text-slate-400">สรุปยอด Delay รายเดือน</div>
+                                    </div>
+                                </label>
+                                <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all border-rose-200 dark:border-rose-800">
+                                    <input type="radio" name="report-type" value="delay-daily" class="w-4 h-4 text-rose-500">
+                                    <div>
+                                        <span class="font-bold text-rose-600 dark:text-rose-400">Daily Delay</span>
+                                        <div class="text-xs text-slate-400">สรุปยอด Delay รายวัน</div>
+                                    </div>
+                                </label>
+                            </div>
                         </div>
-                        <div id="report-month-selector" class="hidden">
-                            <label class="text-sm font-bold text-slate-400">Select Month</label>
-                            <select id="report-month-select" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm font-bold">
-                                <!-- Will be populated by JavaScript -->
-                            </select>
-                        </div>
+                        
+                        <!-- Date/Month Selectors -->
                         <div id="report-date-selector" class="hidden">
                             <label class="text-sm font-bold text-slate-400">Select Date</label>
-                            <input type="date" id="report-date-input" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm font-bold" />
-                        </div>
-                        <button onclick="generateReport()" class="w-full bg-primary text-white py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-blue-600 transition-all">
-                            Generate Report
-                        </button>
-                    </div>
-                </div>
-                
-                <div class="glass-card p-6 rounded-3xl border border-slate-100 dark:border-slate-800">
-                    <div class="flex items-center gap-3 mb-4">
-                        <div class="w-12 h-12 bg-rose-100 dark:bg-rose-500/20 text-rose-500 rounded-full flex items-center justify-center">
-                            <i data-lucide="alert-triangle" class="w-6 h-6"></i>
-                        </div>
-                        <div>
-                            <h3 class="text-xl font-black">Delay Report</h3>
-                            <p class="text-slate-400 text-sm">Overdue orders analysis</p>
-                        </div>
-                    </div>
-                    <div class="space-y-4">
-                        <div>
-                            <label class="text-sm font-bold text-slate-400">Report Type</label>
-                            <select id="delay-report-type-select" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm font-bold">
-                                <option value="delay-monthly">Monthly Delay</option>
-                            </select>
+                            <input type="date" id="report-date-input" class="w-full mt-1 border rounded-lg px-3 py-3 text-lg font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600" />
                         </div>
                         <div id="delay-month-selector" class="hidden">
                             <label class="text-sm font-bold text-slate-400">Select Month</label>
-                            <input type="month" id="delay-month-select" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm font-bold" />
+                            <input type="month" id="delay-month-select" class="w-full mt-1 border rounded-lg px-3 py-3 text-lg font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600" />
                         </div>
                         <div id="delay-date-selector" class="hidden">
                             <label class="text-sm font-bold text-slate-400">Select Date</label>
-                            <input type="date" id="delay-date-input" class="w-full mt-1 border rounded-lg px-3 py-2 text-sm font-bold" />
+                            <input type="date" id="delay-date-input" class="w-full mt-1 border rounded-lg px-3 py-3 text-lg font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600" />
                         </div>
-                        <button onclick="generateDelayReport()" class="w-full bg-rose-500 text-white py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:bg-rose-600 transition-all">
+                        
+                        <!-- Generate Button -->
+                        <button onclick="generateUnifiedReport()" class="w-full bg-gradient-to-r from-blue-500 to-rose-500 text-white py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:from-blue-600 hover:to-rose-600 transition-all shadow-lg">
                             Generate Report
                         </button>
                     </div>
                 </div>
-            </div>
             
             <!-- Report Display Area -->
             <div id="report-display-area" class="hidden">
@@ -613,13 +748,6 @@
                         <div>
                             <h1 id="dispatch-report-title" class="text-3xl font-black tracking-tighter uppercase italic leading-none text-blue-600">Dispatch Summary Report</h1>
                             <p class="text-[10px] font-bold text-blue-400 mt-2 uppercase tracking-widest" id="dispatch-report-desc"></p>
-                            <div class="mt-2 flex gap-2 items-center">
-                                <!-- เพิ่ม Month Picker สำหรับ Monthly Report -->
-                                <label class="text-xs font-bold text-slate-400">เลือกเดือน:</label>
-                                <input type="month" id="dispatch-month-select" class="border rounded-lg px-2 py-1 text-xs font-bold" onchange="openDispatchReportModal('month', null, this.value)" />
-                                <label class="text-xs font-bold text-slate-400 ml-4">เลือกวัน:</label>
-                                <input type="date" id="dispatch-date-select" class="border rounded-lg px-2 py-1 text-xs font-bold" onchange="openDispatchReportModal('day', null, this.value)" />
-                            </div>
                         </div>
                     </div>
                     <div class="text-right">
@@ -647,7 +775,7 @@
                     <thead>
                         <tr class="border-y-2 border-blue-500 bg-blue-50/50">
                             <th class="py-5 px-4 text-left text-[11px] font-black uppercase italic">วันที่</th>
-                            <th class="py-5 px-4 text-right text-[11px] font-black uppercase italic">Dispatch Qty</th>
+                            <th class="py-5 px-4 text-right text-[11px] font-black uppercase italic">จำนวนรายการ</th>
                         </tr>
                     </thead>
                     <tbody id="dispatch-report-table" class="divide-y divide-blue-100"></tbody>
@@ -872,6 +1000,10 @@
             <button onclick="showTab('history')" id="m-nav-history" class="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 nav-btn">
                 <i data-lucide="history" class="w-5 h-5"></i>
                 <span class="text-[10px] font-black uppercase tracking-tighter">Logs</span>
+            </button>
+            <button onclick="showTab('report')" id="m-nav-report" class="flex-1 flex flex-col items-center justify-center gap-1 py-3 text-slate-500 nav-btn">
+                <i data-lucide="file-text" class="w-5 h-5"></i>
+                <span class="text-[10px] font-black uppercase tracking-tighter">Report</span>
             </button>
         </div>
     </nav>
@@ -1657,41 +1789,55 @@
             const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
             const currentYear = new Date().getFullYear();
             
-            const dispatchMonthSelect = document.getElementById('report-month-select');
-            dispatchMonthSelect.innerHTML = months.map((month, index) => 
-                `<option value="${index}">${month} ${currentYear}</option>`
-            ).join('');
+            // Report month selector ใช้ month picker แล้ว ไม่ต้อง populate
             
             // Delay month selector ใช้ month picker แล้ว ไม่ต้อง populate
         }
         
         function generateReport() {
+            console.log('generateReport called'); // Debug log
             const type = document.getElementById('report-type-select').value;
+            console.log('generateReport type:', type); // Debug log
             
             if (type === 'dispatch-monthly') {
-                const month = parseInt(document.getElementById('report-month-select').value);
-                openDispatchReportModal('month', month);
+                console.log('Calling openDispatchReportModal for monthly'); // Debug log
+                // ไม่ต้องเลือกเดือน ใช้เดือนปัจจุบันโดยอัตโนมัติ
+                openDispatchReportModal('month');
             } else if (type === 'dispatch-daily') {
                 const date = document.getElementById('report-date-input').value;
+                console.log('generateReport date:', date); // Debug log
                 if (!date) {
+                    console.log('No date selected, showing toast'); // Debug log
                     showToast('กรุณาเลือกวันที่');
                     return;
                 }
+                console.log('Calling openDispatchReportModal for daily'); // Debug log
                 openDispatchReportModal('day', null, date);
+            } else {
+                console.log('Unknown report type:', type); // Debug log
             }
         }
         
         function generateDelayReport() {
-            // ทำงานเฉพาะ Monthly Delay กับ Month Picker
-            const monthInput = document.getElementById('delay-month-select').value;
-            if (!monthInput) {
-                showToast('กรุณาเลือกเดือน');
-                return;
-            }
+            const selectedType = document.querySelector('input[name="delay-report-type"]:checked').value;
             
-            // แปลงจาก YYYY-MM เป็น month index (0-11)
-            const [year, month] = monthInput.split('-').map(Number);
-            openDelayReportModal('month', month - 1);
+            if (selectedType === 'delay-monthly') {
+                const monthInput = document.getElementById('delay-month-select').value;
+                if (!monthInput) {
+                    showToast('กรุณาเลือกเดือน');
+                    return;
+                }
+                // แปลงจาก YYYY-MM เป็น month index (0-11)
+                const [year, month] = monthInput.split('-').map(Number);
+                openDelayReportModal('month', month - 1);
+            } else if (selectedType === 'delay-daily') {
+                const date = document.getElementById('delay-date-input').value;
+                if (!date) {
+                    showToast('กรุณาเลือกวันที่');
+                    return;
+                }
+                openDelayReportModal('day', null, date);
+            }
         }
         
         function printReport() {
