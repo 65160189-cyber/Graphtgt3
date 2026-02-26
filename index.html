@@ -403,151 +403,8 @@
             dateInput.focus();
         }
 
-        function showMonthPickerForMonthlyDelay() {
-            // Create modal overlay
-            const modal = document.createElement('div');
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            modal.style.zIndex = '9998';
-            modal.style.display = 'flex';
-            modal.style.alignItems = 'center';
-            modal.style.justifyContent = 'center';
-            
-            // Create date container
-            const container = document.createElement('div');
-            container.style.backgroundColor = '#1e293b';
-            container.style.borderRadius = '16px';
-            container.style.padding = '32px';
-            container.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
-            container.style.border = '2px solid #f43f5e';
-            container.style.minWidth = '320px';
-            
-            // Create title
-            const title = document.createElement('h3');
-            title.textContent = 'เลือกเดือนสำหรับรายงาน Delay';
-            title.style.color = '#fff';
-            title.style.fontSize = '20px';
-            title.style.fontWeight = 'bold';
-            title.style.marginBottom = '24px';
-            title.style.textAlign = 'center';
-            title.style.textTransform = 'uppercase';
-            title.style.letterSpacing = '0.08em';
-            title.style.lineHeight = '1.4';
-            title.style.fontFamily = 'system-ui, -apple-system, sans-serif';
-            title.style.display = 'flex';
-            title.style.alignItems = 'center';
-            title.style.justifyContent = 'center';
-            title.style.width = '100%';
-            
-            // Create month input
-            const monthInput = document.createElement('input');
-            monthInput.type = 'month';
-            monthInput.value = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
-            monthInput.style.width = '100%';
-            monthInput.style.padding = '16px';
-            monthInput.style.fontSize = '16px';
-            monthInput.style.borderRadius = '12px';
-            monthInput.style.border = '2px solid #475569';
-            monthInput.style.backgroundColor = '#0f172a';
-            monthInput.style.color = '#fff';
-            monthInput.style.cursor = 'pointer';
-            monthInput.style.outline = 'none';
-            monthInput.style.transition = 'border-color 0.2s';
-            monthInput.style.marginBottom = '20px';
-            
-            // Create buttons container
-            const buttonsContainer = document.createElement('div');
-            buttonsContainer.style.display = 'flex';
-            buttonsContainer.style.gap = '12px';
-            buttonsContainer.style.justifyContent = 'center';
-            
-            // Create confirm button
-            const confirmBtn = document.createElement('button');
-            confirmBtn.textContent = 'ตกลง';
-            confirmBtn.style.backgroundColor = '#f43f5e';
-            confirmBtn.style.color = '#fff';
-            confirmBtn.style.border = 'none';
-            confirmBtn.style.padding = '12px 24px';
-            confirmBtn.style.borderRadius = '8px';
-            confirmBtn.style.fontSize = '14px';
-            confirmBtn.style.fontWeight = 'bold';
-            confirmBtn.style.cursor = 'pointer';
-            confirmBtn.style.textTransform = 'uppercase';
-            confirmBtn.style.letterSpacing = '0.05em';
-            confirmBtn.style.transition = 'background-color 0.2s';
-            
-            // Create cancel button
-            const cancelBtn = document.createElement('button');
-            cancelBtn.textContent = 'ยกเลิก';
-            cancelBtn.style.backgroundColor = '#64748b';
-            cancelBtn.style.color = '#fff';
-            cancelBtn.style.border = 'none';
-            cancelBtn.style.padding = '12px 24px';
-            cancelBtn.style.borderRadius = '8px';
-            cancelBtn.style.fontSize = '14px';
-            cancelBtn.style.fontWeight = 'bold';
-            cancelBtn.style.cursor = 'pointer';
-            cancelBtn.style.textTransform = 'uppercase';
-            cancelBtn.style.letterSpacing = '0.05em';
-            cancelBtn.style.transition = 'background-color 0.2s';
-            
-            // Add hover effects
-            confirmBtn.onmouseover = () => confirmBtn.style.backgroundColor = '#e11d48';
-            confirmBtn.onmouseout = () => confirmBtn.style.backgroundColor = '#f43f5e';
-            cancelBtn.onmouseover = () => cancelBtn.style.backgroundColor = '#475569';
-            cancelBtn.onmouseout = () => cancelBtn.style.backgroundColor = '#64748b';
-            
-            // Add focus effect
-            monthInput.onfocus = () => monthInput.style.borderColor = '#f43f5e';
-            monthInput.onblur = () => monthInput.style.borderColor = '#475569';
-            
-            // Event handlers
-            confirmBtn.onclick = function() {
-                const selectedMonth = monthInput.value;
-                document.body.removeChild(modal);
-                openDelayReportModal('month', null, selectedMonth);
-            };
-            
-            cancelBtn.onclick = function() {
-                document.body.removeChild(modal);
-            };
-            
-            // Close on escape
-            const handleEscape = function(e) {
-                if (e.key === 'Escape') {
-                    if (document.body.contains(modal)) {
-                        document.body.removeChild(modal);
-                    }
-                    document.removeEventListener('keydown', handleEscape);
-                }
-            };
-            document.addEventListener('keydown', handleEscape);
-            
-            // Close on background click
-            modal.onclick = function(e) {
-                if (e.target === modal) {
-                    document.body.removeChild(modal);
-                }
-            };
-            
-            // Assemble modal
-            buttonsContainer.appendChild(confirmBtn);
-            buttonsContainer.appendChild(cancelBtn);
-            container.appendChild(title);
-            container.appendChild(monthInput);
-            container.appendChild(buttonsContainer);
-            modal.appendChild(container);
-            document.body.appendChild(modal);
-            
-            // Focus on input
-            monthInput.focus();
-        }
-
         function openDispatchReportModal(type) {
+            closeModal('report-type-modal');
             
             // สรุปยอดส่งของ (dispatch) รายเดือน หรือ รายวัน
             db.history.toArray().then(logs => {
@@ -909,20 +766,20 @@
             </div>
             
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
-                <div class="glass-card p-6 rounded-3xl border border-white dark:border-white/50 flex flex-col justify-between h-44 sm:h-36 text-white glow-white bg-gradient-to-br from-slate-800 to-slate-900">
-                    <p class="text-[25px] font-black uppercase tracking-widest text-white/90">Daily Target</p>
+                <div class="glass-card p-6 rounded-3xl border border-white-100 dark:border-white-800 flex flex-col justify-between h-44 sm:h-36 text-white glow-white bg-gradient-to-br from-slate-800 to-slate-900">
+                    <p class="text-[25px] font-black uppercase tracking-widest text-white-400">Daily Target</p>
                     <h3 id="stat-daily-target" class="text-4xl sm:text-5xl font-black text-white">500</h3>
                 </div>
                 <div class="glass-card p-6 rounded-3xl border border-green-100 dark:border-green-800 flex flex-col justify-between h-36 text-accent glow-green">
-                    <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Shipped Today</p>
+                    <p class="text-[25px] font-black uppercase tracking-widest text-green-400">Shipped Today</p>
                     <h3 id="stat-today-shipped" class="text-4xl sm:text-5xl font-black">0</h3>
                 </div> 
                 <div class="glass-card p-6 rounded-3xl border border-yellow-100 dark:border-yellow-800 flex flex-col justify-between h-36 text-yellow-500 glow-yellow">
-                    <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Onplan</p>
+                    <p class="text-[25px] font-black uppercase tracking-widest text-yellow-400">Onplan</p>
                     <h3 id="stat-today-remaining" class="text-4xl sm:text-5xl font-black">0</h3>
                 </div>
                 <div class="glass-card p-6 rounded-3xl border border-rose-100 dark:border-rose-800 flex flex-col justify-between h-36 text-rose-500 glow-rose">
-                    <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Acc.Delay</p>
+                    <p class="text-[25px] font-black uppercase tracking-widest text-rose-400">Acc.Delay</p>
                     <h3 id="stat-overdue" class="text-4xl sm:text-5xl font-black">0</h3>
                 </div>
                 <div class="bg-primary p-6 rounded-3xl shadow-xl flex flex-col justify-between h-36 text-white col-span-2 lg:col-span-1">
@@ -1094,10 +951,10 @@
                                 <i data-lucide="truck" class="w-5 h-5 mx-auto mb-2"></i>
                                 สรุปยอดส่งของ (รายเดือน)
                             </div>
-                            <div class="bg-rose-500 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-rose-600 transition-all shadow-lg cursor-pointer flex flex-col items-center justify-center" onclick="showMonthPickerForMonthlyDelay()">
+                            <button onclick="openDelayReportModal('month')" class="bg-rose-500 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-rose-600 transition-all shadow-lg">
                                 <i data-lucide="alert-circle" class="w-5 h-5 mx-auto mb-2"></i>
                                 สรุปยอด Delay (รายเดือน)
-                            </div>
+                            </button>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4">
