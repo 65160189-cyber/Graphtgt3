@@ -116,8 +116,438 @@
             lucide.createIcons();
         }
 
+        function showMonthPickerForMonthlyDispatch() {
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.zIndex = '9998';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            
+            // Create date container
+            const container = document.createElement('div');
+            container.style.backgroundColor = '#1e293b';
+            container.style.borderRadius = '16px';
+            container.style.padding = '32px';
+            container.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            container.style.border = '2px solid #3b82f6';
+            container.style.minWidth = '320px';
+            
+            // Create title
+            const title = document.createElement('h3');
+            title.textContent = 'เลือกเดือนสำหรับรายงาน';
+            title.style.color = '#fff';
+            title.style.fontSize = '20px';
+            title.style.fontWeight = 'bold';
+            title.style.marginBottom = '24px';
+            title.style.textAlign = 'center';
+            title.style.textTransform = 'uppercase';
+            title.style.letterSpacing = '0.08em';
+            title.style.lineHeight = '1.4';
+            title.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+            title.style.display = 'flex';
+            title.style.alignItems = 'center';
+            title.style.justifyContent = 'center';
+            title.style.width = '100%';
+            
+            // Create month input
+            const monthInput = document.createElement('input');
+            monthInput.type = 'month';
+            monthInput.value = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+            monthInput.style.width = '100%';
+            monthInput.style.padding = '16px';
+            monthInput.style.fontSize = '16px';
+            monthInput.style.borderRadius = '12px';
+            monthInput.style.border = '2px solid #475569';
+            monthInput.style.backgroundColor = '#0f172a';
+            monthInput.style.color = '#fff';
+            monthInput.style.cursor = 'pointer';
+            monthInput.style.outline = 'none';
+            monthInput.style.transition = 'border-color 0.2s';
+            monthInput.style.marginBottom = '20px';
+            
+            // Create buttons container
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.style.display = 'flex';
+            buttonsContainer.style.gap = '12px';
+            buttonsContainer.style.justifyContent = 'center';
+            
+            // Create confirm button
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = 'ตกลง';
+            confirmBtn.style.backgroundColor = '#3b82f6';
+            confirmBtn.style.color = '#fff';
+            confirmBtn.style.border = 'none';
+            confirmBtn.style.padding = '12px 24px';
+            confirmBtn.style.borderRadius = '8px';
+            confirmBtn.style.fontSize = '14px';
+            confirmBtn.style.fontWeight = 'bold';
+            confirmBtn.style.cursor = 'pointer';
+            confirmBtn.style.textTransform = 'uppercase';
+            confirmBtn.style.letterSpacing = '0.05em';
+            confirmBtn.style.transition = 'background-color 0.2s';
+            
+            // Create cancel button
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'ยกเลิก';
+            cancelBtn.style.backgroundColor = '#64748b';
+            cancelBtn.style.color = '#fff';
+            cancelBtn.style.border = 'none';
+            cancelBtn.style.padding = '12px 24px';
+            cancelBtn.style.borderRadius = '8px';
+            cancelBtn.style.fontSize = '14px';
+            cancelBtn.style.fontWeight = 'bold';
+            cancelBtn.style.cursor = 'pointer';
+            cancelBtn.style.textTransform = 'uppercase';
+            cancelBtn.style.letterSpacing = '0.05em';
+            cancelBtn.style.transition = 'background-color 0.2s';
+            
+            // Add hover effects
+            confirmBtn.onmouseover = () => confirmBtn.style.backgroundColor = '#2563eb';
+            confirmBtn.onmouseout = () => confirmBtn.style.backgroundColor = '#3b82f6';
+            cancelBtn.onmouseover = () => cancelBtn.style.backgroundColor = '#475569';
+            cancelBtn.onmouseout = () => cancelBtn.style.backgroundColor = '#64748b';
+            
+            // Add focus effect
+            monthInput.onfocus = () => monthInput.style.borderColor = '#3b82f6';
+            monthInput.onblur = () => monthInput.style.borderColor = '#475569';
+            
+            // Event handlers
+            confirmBtn.onclick = function() {
+                const selectedMonth = monthInput.value;
+                document.body.removeChild(modal);
+                openDispatchReportModal('month', null, selectedMonth);
+            };
+            
+            cancelBtn.onclick = function() {
+                document.body.removeChild(modal);
+            };
+            
+            // Close on escape
+            const handleEscape = function(e) {
+                if (e.key === 'Escape') {
+                    if (document.body.contains(modal)) {
+                        document.body.removeChild(modal);
+                    }
+                    document.removeEventListener('keydown', handleEscape);
+                }
+            };
+            document.addEventListener('keydown', handleEscape);
+            
+            // Close on background click
+            modal.onclick = function(e) {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            };
+            
+            // Assemble modal
+            buttonsContainer.appendChild(confirmBtn);
+            buttonsContainer.appendChild(cancelBtn);
+            container.appendChild(title);
+            container.appendChild(monthInput);
+            container.appendChild(buttonsContainer);
+            modal.appendChild(container);
+            document.body.appendChild(modal);
+            
+            // Focus on input
+            monthInput.focus();
+        }
+
+        function showDatePickerForDailyDispatch() {
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.zIndex = '9998';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            
+            // Create date container
+            const container = document.createElement('div');
+            container.style.backgroundColor = '#1e293b';
+            container.style.borderRadius = '16px';
+            container.style.padding = '32px';
+            container.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            container.style.border = '2px solid #3b82f6';
+            container.style.minWidth = '320px';
+            
+            // Create title
+            const title = document.createElement('h3');
+            title.textContent = 'เลือกวันที่สำหรับรายงาน';
+            title.style.color = '#fff';
+            title.style.fontSize = '20px';
+            title.style.fontWeight = 'bold';
+            title.style.marginBottom = '24px';
+            title.style.textAlign = 'center';
+            title.style.textTransform = 'uppercase';
+            title.style.letterSpacing = '0.08em';
+            title.style.lineHeight = '1.4';
+            title.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+            title.style.display = 'flex';
+            title.style.alignItems = 'center';
+            title.style.justifyContent = 'center';
+            title.style.width = '100%';
+            
+            // Create date input
+            const dateInput = document.createElement('input');
+            dateInput.type = 'date';
+            dateInput.value = new Date().toISOString().split('T')[0];
+            dateInput.style.width = '100%';
+            dateInput.style.padding = '16px';
+            dateInput.style.fontSize = '16px';
+            dateInput.style.borderRadius = '12px';
+            dateInput.style.border = '2px solid #475569';
+            dateInput.style.backgroundColor = '#0f172a';
+            dateInput.style.color = '#fff';
+            dateInput.style.cursor = 'pointer';
+            dateInput.style.outline = 'none';
+            dateInput.style.transition = 'border-color 0.2s';
+            dateInput.style.marginBottom = '20px';
+            
+            // Create buttons container
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.style.display = 'flex';
+            buttonsContainer.style.gap = '12px';
+            buttonsContainer.style.justifyContent = 'center';
+            
+            // Create confirm button
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = 'ตกลง';
+            confirmBtn.style.backgroundColor = '#3b82f6';
+            confirmBtn.style.color = '#fff';
+            confirmBtn.style.border = 'none';
+            confirmBtn.style.padding = '12px 24px';
+            confirmBtn.style.borderRadius = '8px';
+            confirmBtn.style.fontSize = '14px';
+            confirmBtn.style.fontWeight = 'bold';
+            confirmBtn.style.cursor = 'pointer';
+            confirmBtn.style.textTransform = 'uppercase';
+            confirmBtn.style.letterSpacing = '0.05em';
+            confirmBtn.style.transition = 'background-color 0.2s';
+            
+            // Create cancel button
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'ยกเลิก';
+            cancelBtn.style.backgroundColor = '#64748b';
+            cancelBtn.style.color = '#fff';
+            cancelBtn.style.border = 'none';
+            cancelBtn.style.padding = '12px 24px';
+            cancelBtn.style.borderRadius = '8px';
+            cancelBtn.style.fontSize = '14px';
+            cancelBtn.style.fontWeight = 'bold';
+            cancelBtn.style.cursor = 'pointer';
+            cancelBtn.style.textTransform = 'uppercase';
+            cancelBtn.style.letterSpacing = '0.05em';
+            cancelBtn.style.transition = 'background-color 0.2s';
+            
+            // Add hover effects
+            confirmBtn.onmouseover = () => confirmBtn.style.backgroundColor = '#2563eb';
+            confirmBtn.onmouseout = () => confirmBtn.style.backgroundColor = '#3b82f6';
+            cancelBtn.onmouseover = () => cancelBtn.style.backgroundColor = '#475569';
+            cancelBtn.onmouseout = () => cancelBtn.style.backgroundColor = '#64748b';
+            
+            // Add focus effect
+            dateInput.onfocus = () => dateInput.style.borderColor = '#3b82f6';
+            dateInput.onblur = () => dateInput.style.borderColor = '#475569';
+            
+            // Event handlers
+            confirmBtn.onclick = function() {
+                const selectedDate = dateInput.value;
+                document.body.removeChild(modal);
+                openDispatchReportModal('day', null, selectedDate);
+            };
+            
+            cancelBtn.onclick = function() {
+                document.body.removeChild(modal);
+            };
+            
+            // Close on escape
+            const handleEscape = function(e) {
+                if (e.key === 'Escape') {
+                    if (document.body.contains(modal)) {
+                        document.body.removeChild(modal);
+                    }
+                    document.removeEventListener('keydown', handleEscape);
+                }
+            };
+            document.addEventListener('keydown', handleEscape);
+            
+            // Close on background click
+            modal.onclick = function(e) {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            };
+            
+            // Assemble modal
+            buttonsContainer.appendChild(confirmBtn);
+            buttonsContainer.appendChild(cancelBtn);
+            container.appendChild(title);
+            container.appendChild(dateInput);
+            container.appendChild(buttonsContainer);
+            modal.appendChild(container);
+            document.body.appendChild(modal);
+            
+            // Focus on input
+            dateInput.focus();
+        }
+
+        function showMonthPickerForMonthlyDelay() {
+            // Create modal overlay
+            const modal = document.createElement('div');
+            modal.style.position = 'fixed';
+            modal.style.top = '0';
+            modal.style.left = '0';
+            modal.style.width = '100%';
+            modal.style.height = '100%';
+            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            modal.style.zIndex = '9998';
+            modal.style.display = 'flex';
+            modal.style.alignItems = 'center';
+            modal.style.justifyContent = 'center';
+            
+            // Create date container
+            const container = document.createElement('div');
+            container.style.backgroundColor = '#1e293b';
+            container.style.borderRadius = '16px';
+            container.style.padding = '32px';
+            container.style.boxShadow = '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)';
+            container.style.border = '2px solid #f43f5e';
+            container.style.minWidth = '320px';
+            
+            // Create title
+            const title = document.createElement('h3');
+            title.textContent = 'เลือกเดือนสำหรับรายงาน Delay';
+            title.style.color = '#fff';
+            title.style.fontSize = '20px';
+            title.style.fontWeight = 'bold';
+            title.style.marginBottom = '24px';
+            title.style.textAlign = 'center';
+            title.style.textTransform = 'uppercase';
+            title.style.letterSpacing = '0.08em';
+            title.style.lineHeight = '1.4';
+            title.style.fontFamily = 'system-ui, -apple-system, sans-serif';
+            title.style.display = 'flex';
+            title.style.alignItems = 'center';
+            title.style.justifyContent = 'center';
+            title.style.width = '100%';
+            
+            // Create month input
+            const monthInput = document.createElement('input');
+            monthInput.type = 'month';
+            monthInput.value = new Date().toISOString().slice(0, 7); // Format: YYYY-MM
+            monthInput.style.width = '100%';
+            monthInput.style.padding = '16px';
+            monthInput.style.fontSize = '16px';
+            monthInput.style.borderRadius = '12px';
+            monthInput.style.border = '2px solid #475569';
+            monthInput.style.backgroundColor = '#0f172a';
+            monthInput.style.color = '#fff';
+            monthInput.style.cursor = 'pointer';
+            monthInput.style.outline = 'none';
+            monthInput.style.transition = 'border-color 0.2s';
+            monthInput.style.marginBottom = '20px';
+            
+            // Create buttons container
+            const buttonsContainer = document.createElement('div');
+            buttonsContainer.style.display = 'flex';
+            buttonsContainer.style.gap = '12px';
+            buttonsContainer.style.justifyContent = 'center';
+            
+            // Create confirm button
+            const confirmBtn = document.createElement('button');
+            confirmBtn.textContent = 'ตกลง';
+            confirmBtn.style.backgroundColor = '#f43f5e';
+            confirmBtn.style.color = '#fff';
+            confirmBtn.style.border = 'none';
+            confirmBtn.style.padding = '12px 24px';
+            confirmBtn.style.borderRadius = '8px';
+            confirmBtn.style.fontSize = '14px';
+            confirmBtn.style.fontWeight = 'bold';
+            confirmBtn.style.cursor = 'pointer';
+            confirmBtn.style.textTransform = 'uppercase';
+            confirmBtn.style.letterSpacing = '0.05em';
+            confirmBtn.style.transition = 'background-color 0.2s';
+            
+            // Create cancel button
+            const cancelBtn = document.createElement('button');
+            cancelBtn.textContent = 'ยกเลิก';
+            cancelBtn.style.backgroundColor = '#64748b';
+            cancelBtn.style.color = '#fff';
+            cancelBtn.style.border = 'none';
+            cancelBtn.style.padding = '12px 24px';
+            cancelBtn.style.borderRadius = '8px';
+            cancelBtn.style.fontSize = '14px';
+            cancelBtn.style.fontWeight = 'bold';
+            cancelBtn.style.cursor = 'pointer';
+            cancelBtn.style.textTransform = 'uppercase';
+            cancelBtn.style.letterSpacing = '0.05em';
+            cancelBtn.style.transition = 'background-color 0.2s';
+            
+            // Add hover effects
+            confirmBtn.onmouseover = () => confirmBtn.style.backgroundColor = '#e11d48';
+            confirmBtn.onmouseout = () => confirmBtn.style.backgroundColor = '#f43f5e';
+            cancelBtn.onmouseover = () => cancelBtn.style.backgroundColor = '#475569';
+            cancelBtn.onmouseout = () => cancelBtn.style.backgroundColor = '#64748b';
+            
+            // Add focus effect
+            monthInput.onfocus = () => monthInput.style.borderColor = '#f43f5e';
+            monthInput.onblur = () => monthInput.style.borderColor = '#475569';
+            
+            // Event handlers
+            confirmBtn.onclick = function() {
+                const selectedMonth = monthInput.value;
+                document.body.removeChild(modal);
+                openDelayReportModal('month', null, selectedMonth);
+            };
+            
+            cancelBtn.onclick = function() {
+                document.body.removeChild(modal);
+            };
+            
+            // Close on escape
+            const handleEscape = function(e) {
+                if (e.key === 'Escape') {
+                    if (document.body.contains(modal)) {
+                        document.body.removeChild(modal);
+                    }
+                    document.removeEventListener('keydown', handleEscape);
+                }
+            };
+            document.addEventListener('keydown', handleEscape);
+            
+            // Close on background click
+            modal.onclick = function(e) {
+                if (e.target === modal) {
+                    document.body.removeChild(modal);
+                }
+            };
+            
+            // Assemble modal
+            buttonsContainer.appendChild(confirmBtn);
+            buttonsContainer.appendChild(cancelBtn);
+            container.appendChild(title);
+            container.appendChild(monthInput);
+            container.appendChild(buttonsContainer);
+            modal.appendChild(container);
+            document.body.appendChild(modal);
+            
+            // Focus on input
+            monthInput.focus();
+        }
+
         function openDispatchReportModal(type) {
-            closeModal('report-type-modal');
             
             // สรุปยอดส่งของ (dispatch) รายเดือน หรือ รายวัน
             db.history.toArray().then(logs => {
@@ -660,21 +1090,21 @@
                     <div class="space-y-6">
                         <!-- Report Buttons -->
                         <div class="grid grid-cols-2 gap-4">
-                            <button onclick="openDispatchReportModal('month')" class="bg-blue-500 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-blue-600 transition-all shadow-lg">
+                            <div class="bg-blue-500 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-blue-600 transition-all shadow-lg cursor-pointer flex flex-col items-center justify-center" onclick="showMonthPickerForMonthlyDispatch()">
                                 <i data-lucide="truck" class="w-5 h-5 mx-auto mb-2"></i>
                                 สรุปยอดส่งของ (รายเดือน)
-                            </button>
-                            <button onclick="openDelayReportModal('month')" class="bg-rose-500 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-rose-600 transition-all shadow-lg">
+                            </div>
+                            <div class="bg-rose-500 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-rose-600 transition-all shadow-lg cursor-pointer flex flex-col items-center justify-center" onclick="showMonthPickerForMonthlyDelay()">
                                 <i data-lucide="alert-circle" class="w-5 h-5 mx-auto mb-2"></i>
                                 สรุปยอด Delay (รายเดือน)
-                            </button>
+                            </div>
                         </div>
                         
                         <div class="grid grid-cols-2 gap-4">
-                            <button onclick="openDispatchReportModal('day')" class="bg-blue-400 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-blue-500 transition-all shadow-lg">
+                            <div class="bg-blue-400 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-blue-500 transition-all shadow-lg cursor-pointer flex flex-col items-center justify-center" onclick="showDatePickerForDailyDispatch()">
                                 <i data-lucide="calendar" class="w-5 h-5 mx-auto mb-2"></i>
                                 สรุปยอดส่งของ (รายวัน)
-                            </button>
+                            </div>
                             <button onclick="openDelayReportModal('day')" class="bg-rose-400 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-rose-500 transition-all shadow-lg">
                                 <i data-lucide="clock" class="w-5 h-5 mx-auto mb-2"></i>
                                 สรุปยอด Delay (รายวัน)
