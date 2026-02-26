@@ -552,13 +552,14 @@
                         <table class="w-full text-left text-xs min-w-[900px]">
                             <thead class="bg-slate-50 dark:bg-slate-800/50 font-black text-slate-400 uppercase tracking-tighter">
                                 <tr>
+                                    <th class="px-6 py-4 text-center">No.</th>
                                     <th class="px-6 py-4">Customer</th>
                                     <th class="px-6 py-4">Kanban ID</th>
-                                    <th class="px-6 py-4 text-center">Order Ref</th>
+                                    <th class="px-6 py-4 text-center">Order No</th>
                                     <th class="px-6 py-4">Sale Part</th>
                                     <th class="px-6 py-4 text-center">Due Date</th>
-                                    <th class="px-6 py-4 text-center">Exported</th>
-                                    <th class="px-6 py-4 text-center">Rem.</th>
+                                    <th class="px-6 py-4 text-center">Shipped Qty</th>
+                                    <th class="px-6 py-4 text-center">Remaining Qty</th>
                                 </tr>
                             </thead>
                             <tbody id="dashboard-table-body" class="divide-y divide-slate-50 dark:divide-slate-800"></tbody>
@@ -620,7 +621,16 @@
             <div class="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
                 <div class="overflow-x-auto">
                     <table class="w-full text-left text-xs min-w-[800px]">
-                        <thead id="stock-table-head" class="bg-slate-50 dark:bg-slate-800/50 font-black text-slate-400 uppercase"></thead>
+                        <thead id="stock-table-head" class="bg-slate-50 dark:bg-slate-800/50 font-black text-slate-400 uppercase">
+                            <tr>
+                                <th class="px-6 py-4">Customer</th>
+                                <th class="px-6 py-4">Kanban ID</th>
+                                <th class="px-6 py-4">Product Details</th>
+                                <th class="px-6 py-4 text-center">Due Date</th>
+                                <th class="px-6 py-4 text-center">Shipped Qty</th>
+                                <th class="px-6 py-4 text-right">Remaining Qty</th>
+                            </tr>
+                        </thead>
                         <tbody id="stock-table-body" class="divide-y divide-slate-50 dark:divide-slate-800"></tbody>
                     </table>
                 </div>
@@ -1358,7 +1368,7 @@
             const tbody = document.getElementById('dashboard-table-body');
             tbody.innerHTML = all.sort((a,b) => a.deliveryDate.localeCompare(b.deliveryDate)).map((o, index) => `
                 <tr class="hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                    <td class="px-6 py-3 font-black text-primary uppercase">${index + 1}</td>
+                    <td class="px-6 py-3 text-center font-black text-primary uppercase">${index + 1}</td>
                     <td class="px-6 py-3 font-black text-primary uppercase">${o.customer}</td>
                     <td class="px-6 py-3 font-bold text-slate-600 dark:text-slate-300">${o.kanbanId || '-'}</td>
                     <td class="px-6 py-3 font-bold text-slate-400 text-center">${o.orderNo}</td>
@@ -1379,7 +1389,7 @@
             if (selectedOrderIds.has(id)) selectedOrderIds.delete(id);
             else selectedOrderIds.add(id);
             updateShipmentBar(); updateDispatchList(); 
-        }
+        } 
 
         function clearSelection() {
             selectedOrderIds.clear(); updateShipmentBar(); updateDispatchList();
