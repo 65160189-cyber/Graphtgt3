@@ -75,9 +75,9 @@
         }
         
         .glow-white {
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5), 
-                        0 0 40px rgba(255, 255, 255, 0.3),
-                        inset 0 0 20px rgba(255, 255, 255, 0.2);
+            box-shadow: 0 0 25px rgba(255, 255, 255, 0.6), 
+                        0 0 50px rgba(255, 255, 255, 0.4),
+                        inset 0 0 25px rgba(255, 255, 255, 0.3);
         }
         
         .dark .glow-green {
@@ -99,9 +99,14 @@
         }
         
         .dark .glow-white {
-            box-shadow: 0 0 20px rgba(255, 255, 255, 0.6), 
-                        0 0 40px rgba(255, 255, 255, 0.4),
-                        inset 0 0 20px rgba(255, 255, 255, 0.3);
+            box-shadow: 0 0 30px rgba(255, 255, 255, 0.8), 
+                        0 0 60px rgba(255, 255, 255, 0.6),
+                        inset 0 0 30px rgba(255, 255, 255, 0.4);
+        }
+        
+        /* Additional contrast for light mode */
+        .bg-gradient-to-br.from-slate-800.to-slate-900 {
+            background: linear-gradient(135deg, rgb(30 41 59) 0%, rgb(15 23 42) 100%);
         }
     </style>
     <script>
@@ -134,12 +139,18 @@
                     });
                     
                     let totalItems = 0;
+                    let allItems = [];
+                    
                     currentMonthLogs.forEach(log => {
                         const items = JSON.parse(log.itemsJson);
                         totalItems += items.length;
+                        allItems.push(...items);
                     });
                     
-                    summary[monthNamesTH[monthIdx] + ' ' + (thisYear + 543)] = totalItems;
+                    summary[monthNamesTH[monthIdx] + ' ' + (thisYear + 543)] = {
+                        total: totalItems,
+                        items: allItems
+                    };
                     label = 'สรุปยอดส่งของ (รายเดือน)';
                     desc = 'ข้อมูลจากประวัติการส่งของ (' + monthNamesTH[monthIdx] + ' ' + (thisYear + 543) + ')';
                     
@@ -148,13 +159,20 @@
                     let dateStr = arguments[2];
                     if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
                     
+                    const dayLogs = logs.filter(log => log.timestamp.startsWith(dateStr));
                     let totalItems = 0;
-                    logs.filter(l => l.timestamp.startsWith(dateStr)).forEach(l => {
-                        const items = JSON.parse(l.itemsJson);
+                    let allItems = [];
+                    
+                    dayLogs.forEach(log => {
+                        const items = JSON.parse(log.itemsJson);
                         totalItems += items.length;
+                        allItems.push(...items);
                     });
                     
-                    summary[dateStr] = totalItems;
+                    summary[dateStr] = {
+                        total: totalItems,
+                        items: allItems
+                    };
                     label = 'สรุปยอดส่งของ (รายวัน)';
                     desc = 'จำนวนรายการที่ส่ง (' + dateStr.split('-').reverse().join('/') + ')';
                 }
@@ -169,20 +187,54 @@
             document.getElementById('dispatch-report-title').innerText = label;
             document.getElementById('dispatch-report-desc').innerText = desc;
             
-            const rows = Object.keys(summary).map(day => {
+            // สร้างรายการสินค้าแยกตามวันที่
+            let rows = [];
+            Object.keys(summary).forEach(day => {
                 let showDay = day;
                 const d = day.split('-');
                 if (d.length === 3) {
                     showDay = d[2] + '/' + d[1] + '/' + d[0];
                 }
-                return `<tr><td class='py-3 px-4 text-left font-bold'>${showDay}</td><td class='py-3 px-4 text-right font-black text-blue-600'>${summary[day]}</td></tr>`;
-            }).join('');
-            document.getElementById('dispatch-report-table').innerHTML = rows;
+                
+                // ถ้าเป็นรายวัน ให้แสดงรายละเอียดสินค้าแยก
+                if (summary[day].items && Array.isArray(summary[day].items)) {
+                    summary[day].items.forEach((item, index) => {
+                        rows.push(`
+                            <tr class="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                                <td class="py-3 px-4 text-left font-bold">${index === 0 ? showDay : ''}</td>
+                                <td class="py-3 px-4">
+                                    <div class="font-bold text-[11px] uppercase">${item.kanbanId || '-'}</div>
+                                    <div class="text-[8px] font-black text-primary uppercase">PART: ${item.salePart}</div>
+                                    <div class="text-[8px] font-black text-slate-400 uppercase">ORDER: ${item.orderNo || '-'}</div>
+                                </td>
+                                <td class="py-3 px-4 text-center font-black text-blue-500 text-[11px]">${showDay}</td>
+                                <td class="py-3 px-4 text-right font-black text-lg text-blue-600">${item.qty.toLocaleString()}</td>
+                            </tr>
+                        `);
+                    });
+                } else {
+                    // ถ้าเป็นรายเดือน ให้แสดงแค่สรุป
+                    rows.push(`
+                        <tr class="hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors">
+                            <td class="py-3 px-4 text-left font-bold">${showDay}</td>
+                            <td class="py-3 px-4 text-left">สรุปยอดส่งของทั้งหมด</td>
+                            <td class="py-3 px-4 text-center font-black text-blue-500 text-[11px]">${showDay}</td>
+                            <td class="py-3 px-4 text-right font-black text-lg text-blue-600">${summary[day]}</td>
+                        </tr>
+                    `);
+                }
+            });
+            
+            document.getElementById('dispatch-report-table').innerHTML = rows.join('');
             
             // สรุปยอด
             const days = Object.keys(summary).length;
-            const totalUnits = Object.values(summary).reduce((a, b) => a + b, 0);
+            const totalUnits = Object.values(summary).reduce((a, b) => a + (b.items ? b.items.reduce((sum, item) => sum + item.qty, 0) : b), 0);
+            
+            // แสดง Days หรือ Month ตามประเภทรายงาน
+            const isMonthly = label.includes('รายเดือน');
             document.getElementById('dispatch-total-days').innerText = days;
+            document.getElementById('dispatch-total-days-label').innerText = isMonthly ? 'Month' : 'Days';
             document.getElementById('dispatch-total-units').innerText = totalUnits.toLocaleString();
             document.getElementById('dispatch-report-date').innerText = new Date().toLocaleDateString('th-TH', { 
                 year: 'numeric', 
@@ -196,148 +248,93 @@
             lucide.createIcons();
         }
 
-        function generateUnifiedReport() {
-            const selectedType = document.querySelector('input[name="report-type"]:checked').value;
+        function openDelayReportModal(type = 'month') {
+            // Delay Report Modal with real data
+            const modal = document.getElementById('delay-report-modal');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex', 'items-center', 'justify-center');
             
-            if (selectedType === 'dispatch-monthly') {
-                openDispatchReportModal('month');
-            } else if (selectedType === 'dispatch-daily') {
-                const date = document.getElementById('report-date-input').value;
-                if (!date) {
-                    showToast('กรุณาเลือกวันที่');
-                    return;
-                }
-                openDispatchReportModal('day', date);
-            } else if (selectedType === 'delay-monthly') {
-                const monthInput = document.getElementById('delay-month-select').value;
-                if (!monthInput) {
-                    showToast('กรุณาเลือกเดือน');
-                    return;
-                }
-                // แปลงจาก YYYY-MM เป็น month index (0-11)
-                const [year, month] = monthInput.split('-').map(Number);
-                openDelayReportModal('month', month - 1);
-            } else if (selectedType === 'delay-daily') {
-                const date = document.getElementById('delay-date-input').value;
-                if (!date) {
-                    showToast('กรุณาเลือกวันที่');
-                    return;
-                }
-                openDelayReportModal('day', null, date);
-            }
-        }
-
-        function initializeReportPage() {
-            // Setup event listeners for unified radio button selection
-            document.querySelectorAll('input[name="report-type"]').forEach(radio => {
-                radio.addEventListener('change', function() {
-                    // Hide all selectors first
-                    document.getElementById('report-date-selector').classList.add('hidden');
-                    document.getElementById('delay-month-selector').classList.add('hidden');
-                    document.getElementById('delay-date-selector').classList.add('hidden');
-                    
-                    // Show appropriate selector based on selection
-                    if (this.value === 'dispatch-daily') {
-                        document.getElementById('report-date-selector').classList.remove('hidden');
-                    } else if (this.value === 'delay-monthly') {
-                        document.getElementById('delay-month-selector').classList.remove('hidden');
-                    } else if (this.value === 'delay-daily') {
-                        document.getElementById('delay-date-selector').classList.remove('hidden');
-                    }
-                });
+            // Update report date
+            document.getElementById('report-date').innerText = new Date().toLocaleDateString('th-TH', { 
+                year: 'numeric', 
+                month: 'long', 
+                day: 'numeric', 
+                hour: '2-digit', 
+                minute: '2-digit' 
             });
             
-            // Initialize with default selection
-            document.querySelector('input[name="report-type"]:checked').dispatchEvent(new Event('change'));
-        }
-
-        function openDelayReportModal(type = 'month') {
-            // เตรียม dropdown เดือน
+            // Get delay data from orders
             db.orders.toArray().then(all => {
-                if (type === 'month' && window.myCharts && myCharts.delayMonthly) {
-                    const months = myCharts.delayMonthly.data.labels;
-                    const now = new Date();
-                    const thisYear = now.getFullYear();
-                    const monthNamesTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                    const select = document.getElementById('delay-month-select');
-                    select.innerHTML = '';
-                    months.forEach((m, i) => {
-                        const th = monthNamesTH[i] + ' ' + (thisYear + 543);
-                        const opt = document.createElement('option');
-                        opt.value = i;
-                        opt.textContent = th;
-                        if (i === now.getMonth()) opt.selected = true;
-                        select.appendChild(opt);
+                console.log('All orders in database:', all); // Debug log
+                console.log('Total orders count:', all.length); // Debug log
+                
+                const todayStr = new Date().toISOString().split('T')[0];
+                const today = new Date(todayStr);
+                console.log('Today date:', todayStr); // Debug log
+                
+                // Check each order's delivery date
+                all.forEach(order => {
+                    const deliveryDate = new Date(order.deliveryDate);
+                    const isDelay = order.qty > 0 && deliveryDate < today;
+                    console.log(`Order: ${order.kanbanId}, Delivery: ${order.deliveryDate}, Delivery Date Obj: ${deliveryDate.toISOString()}, Qty: ${order.qty}, Is Delay: ${isDelay}`);
+                });
+                
+                const delayItems = all.filter(o => {
+                    const deliveryDate = new Date(o.deliveryDate);
+                    return o.qty > 0 && deliveryDate < today;
+                });
+                console.log('Delay items found:', delayItems); // Debug log
+                console.log('Delay items count:', delayItems.length); // Debug log
+                
+                // Create table rows
+                let rows = '';
+                if (delayItems.length > 0) {
+                    delayItems.forEach((item, index) => {
+                        rows += `
+                            <tr class="hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                                <td class="py-3 px-4 text-left font-black text-[11px] uppercase">${item.customer || '-'}</td>
+                                <td class="py-3 px-4">
+                                    <div class="font-bold text-[11px] uppercase">${item.kanbanId || '-'}</div>
+                                    <div class="text-[8px] font-black text-primary uppercase">PART: ${item.salePart || '-'}</div>
+                                    <div class="text-[8px] font-black text-slate-400 uppercase">ORDER: ${item.orderNo || '-'}</div>
+                                </td>
+                                <td class="py-3 px-4 text-center font-black text-rose-500 text-[11px]">${item.deliveryDate || '-'}</td>
+                                <td class="py-3 px-4 text-right font-black text-lg text-rose-600">${item.qty.toLocaleString()}</td>
+                            </tr>
+                        `;
                     });
-                    select.onchange = function() {
-                        openDelayReportModal('month', parseInt(this.value));
-                    };
-                }
-                // เตรียม date picker
-                if (type === 'day') {
-                    const input = document.getElementById('delay-date-select');
-                    const today = new Date().toISOString().split('T')[0];
-                    input.value = today;
-                    input.onchange = function() {
-                        openDelayReportModal('day', null, this.value);
-                    };
-                }
-                let summary = {};
-                let label = '';
-                let desc = '';
-                if (type === 'month') {
-                    // ใช้ข้อมูลจากกราฟ myCharts.delayMonthly ตามเดือนที่เลือก
-                    let monthIdx = arguments[1];
-                    if (typeof monthIdx !== 'number') monthIdx = (new Date()).getMonth();
-                    if (window.myCharts && myCharts.delayMonthly) {
-                        const months = myCharts.delayMonthly.data.labels;
-                        const data = myCharts.delayMonthly.data.datasets[0].data;
-                        const now = new Date();
-                        const thisYear = now.getFullYear();
-                        const monthNamesTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
-                        summary = {};
-                        summary[monthNamesTH[monthIdx] + ' ' + (thisYear + 543)] = data[monthIdx] || 0;
-                        label = 'สรุปยอด Delay (รายเดือน)';
-                        desc = 'ข้อมูลจากกราฟ Delay Monthly (' + monthNamesTH[monthIdx] + ' ' + (thisYear + 543) + ')';
-                    } else {
-                        label = 'สรุปยอด Delay (รายเดือน)';
-                        desc = 'ไม่พบข้อมูลกราฟ';
-                    }
                 } else {
-                    // รายวัน: ตามวันที่เลือก
-                    let dateStr = arguments[2];
-                    if (!dateStr) dateStr = new Date().toISOString().split('T')[0];
-                    let delayToday = 0;
-                    all.filter(o => o.qty > 0 && o.deliveryDate === dateStr).forEach(o => {
-                        delayToday += o.qty;
-                    });
-                    summary[dateStr] = delayToday;
-                    label = 'สรุปยอด Delay (รายวัน)';
-                    desc = 'ยอด Delay (' + dateStr.split('-').reverse().join('/') + ')';
-                }
-                // Render modal
-                document.getElementById('delay-report-title').innerText = label;
-                document.getElementById('delay-report-desc').innerText = desc;
-                const rows = Object.keys(summary).map(day => {
-                    let showDay = day;
-                    if (type === 'month') showDay = day; // เดือนเป็นชื่อไทย
-                    else {
-                        const d = day.split('-');
-                        showDay = d[2] + '/' + d[1] + '/' + d[0];
+                    if (all.length === 0) {
+                        rows = `
+                            <tr class="hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                                <td class="py-5 px-4 text-left text-[11px] font-black uppercase italic" colspan="4">📋 ไม่มีข้อมูลในระบบ กรุณาสร้าง Order ก่อน</td>
+                            </tr>
+                        `;
+                    } else {
+                        rows = `
+                            <tr class="hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors">
+                                <td class="py-5 px-4 text-left text-[11px] font-black uppercase italic" colspan="4">✅ ไม่มีรายการที่ค้างส่ง ทุก Order ถูกส่งเรียบร้อยแล้ว</td>
+                            </tr>
+                        `;
                     }
-                    return `<tr><td class='py-3 px-4 text-left font-bold'>${showDay}</td><td class='py-3 px-4 text-right font-black text-rose-600'>${summary[day]}</td></tr>`;
-                }).join('');
-                document.getElementById('delay-report-table').innerHTML = rows;
-                // Summary box
-                const days = Object.keys(summary).length;
-                const totalUnits = Object.values(summary).reduce((a, b) => a + b, 0);
-                document.getElementById('delay-total-days').innerText = days;
-                document.getElementById('delay-total-units').innerText = totalUnits.toLocaleString();
-                document.getElementById('delay-report-date').innerText = new Date().toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-                document.getElementById('delay-report-modal').classList.remove('hidden');
+                }
+                
+                // Update table
+                const tableBody = document.getElementById('report-table-body');
+                if (tableBody) {
+                    tableBody.innerHTML = rows;
+                }
+                
+                // Update summary
+                const totalItems = document.getElementById('report-total-items');
+                const totalUnits = document.getElementById('report-total-units');
+                if (totalItems) totalItems.innerText = delayItems.length;
+                if (totalUnits) totalUnits.innerText = delayItems.reduce((sum, item) => sum + item.qty, 0).toLocaleString();
+                
                 lucide.createIcons();
             });
         }
+
         tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#3b82f6', accent: '#10b981' } } } }
     </script>
     <style>
@@ -481,31 +478,31 @@
                 </div>
             </div>
             
-            <div class="grid grid-cols-2 lg:grid-cols-5 gap-3">
-                <div class="glass-card p-6 rounded-3xl border border-white dark:border-white/50 flex flex-col justify-between h-36 text-white glow-white">
-                    <p class="text-[25px] font-black uppercase tracking-widest text-white/80">Daily Target</p>
-                    <h3 id="stat-daily-target" class="text-5xl font-black">500</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3">
+                <div class="glass-card p-6 rounded-3xl border border-white dark:border-white/50 flex flex-col justify-between h-44 sm:h-36 text-white glow-white bg-gradient-to-br from-slate-800 to-slate-900">
+                    <p class="text-[25px] font-black uppercase tracking-widest text-white/90">Daily Target</p>
+                    <h3 id="stat-daily-target" class="text-4xl sm:text-5xl font-black text-white">500</h3>
                 </div>
                 <div class="glass-card p-6 rounded-3xl border border-green-100 dark:border-green-800 flex flex-col justify-between h-36 text-accent glow-green">
                     <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Shipped Today</p>
-                    <h3 id="stat-today-shipped" class="text-5xl font-black">0</h3>
+                    <h3 id="stat-today-shipped" class="text-4xl sm:text-5xl font-black">0</h3>
                 </div> 
                 <div class="glass-card p-6 rounded-3xl border border-yellow-100 dark:border-yellow-800 flex flex-col justify-between h-36 text-yellow-500 glow-yellow">
                     <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Onplan</p>
-                    <h3 id="stat-today-remaining" class="text-5xl font-black">0</h3>
+                    <h3 id="stat-today-remaining" class="text-4xl sm:text-5xl font-black">0</h3>
                 </div>
                 <div class="glass-card p-6 rounded-3xl border border-rose-100 dark:border-rose-800 flex flex-col justify-between h-36 text-rose-500 glow-rose">
                     <p class="text-[25px] font-black uppercase tracking-widest text-slate-400">Acc.Delay</p>
-                    <h3 id="stat-overdue" class="text-5xl font-black">0</h3>
+                    <h3 id="stat-overdue" class="text-4xl sm:text-5xl font-black">0</h3>
                 </div>
                 <div class="bg-primary p-6 rounded-3xl shadow-xl flex flex-col justify-between h-36 text-white col-span-2 lg:col-span-1">
                     <p class="text-white/60 text-[25px] font-black uppercase tracking-widest">System Load</p>
-                    <h3 id="stat-total-load" class="text-5xl font-black">0</h3>
+                    <h3 id="stat-total-load" class="text-4xl sm:text-5xl font-black">0</h3>
                 </div>
             </div>
 
             <!-- HISTORY CHARTS SECTION -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mt-8">
                 <div class="glass-card p-6 rounded-[2.5rem] border border-blue-100 dark:border-blue-800 shadow-sm">
                     <div class="flex items-center gap-2 mb-6">
                         <i data-lucide="bar-chart" class="w-4 h-4 text-accent"></i>
@@ -527,7 +524,7 @@
             </div>
 
             <!-- DELAY CHARTS SECTION -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-8">
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-6 mt-8">
                 <div class="glass-card p-6 rounded-[2.5rem] border border-rose-100 dark:border-rose-800 shadow-sm">
                     <div class="flex items-center gap-2 mb-6">
                         <i data-lucide="bar-chart" class="w-4 h-4 text-rose-500"></i>
@@ -610,7 +607,7 @@
                         <i data-lucide="x" class="w-3 h-3"></i><span>ยกเลิกการเลือกทั้งหมด</span>
                     </button>
                 </div>
-                <div id="dispatch-list-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 min-h-[300px] content-start"></div>
+                <div id="dispatch-list-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 gap-3 min-h-[300px] content-start"></div>
             </div>
         </section>
 
@@ -651,80 +648,32 @@
                     </div>
                     
                     <div class="space-y-6">
-                        <!-- Report Type Selection -->
-                        <div>
-                            <label class="text-sm font-bold text-slate-400">Select Report Type</label>
-                            <div class="mt-3 grid grid-cols-2 gap-3">
-                                <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all border-blue-200 dark:border-blue-800">
-                                    <input type="radio" name="report-type" value="dispatch-monthly" checked class="w-4 h-4 text-blue-500">
-                                    <div>
-                                        <span class="font-bold text-blue-600 dark:text-blue-400">Monthly Dispatch</span>
-                                        <div class="text-xs text-slate-400">สรุปยอดส่งของรายเดือน</div>
-                                    </div>
-                                </label>
-                                <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all border-blue-200 dark:border-blue-800">
-                                    <input type="radio" name="report-type" value="dispatch-daily" class="w-4 h-4 text-blue-500">
-                                    <div>
-                                        <span class="font-bold text-blue-600 dark:text-blue-400">Daily Dispatch</span>
-                                        <div class="text-xs text-slate-400">สรุปยอดส่งของรายวัน</div>
-                                    </div>
-                                </label>
-                                <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all border-rose-200 dark:border-rose-800">
-                                    <input type="radio" name="report-type" value="delay-monthly" class="w-4 h-4 text-rose-500">
-                                    <div>
-                                        <span class="font-bold text-rose-600 dark:text-rose-400">Monthly Delay</span>
-                                        <div class="text-xs text-slate-400">สรุปยอด Delay รายเดือน</div>
-                                    </div>
-                                </label>
-                                <label class="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-all border-rose-200 dark:border-rose-800">
-                                    <input type="radio" name="report-type" value="delay-daily" class="w-4 h-4 text-rose-500">
-                                    <div>
-                                        <span class="font-bold text-rose-600 dark:text-rose-400">Daily Delay</span>
-                                        <div class="text-xs text-slate-400">สรุปยอด Delay รายวัน</div>
-                                    </div>
-                                </label>
-                            </div>
+                        <!-- Report Buttons -->
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="openDispatchReportModal('month')" class="bg-blue-500 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-blue-600 transition-all shadow-lg">
+                                <i data-lucide="truck" class="w-5 h-5 mx-auto mb-2"></i>
+                                สรุปยอดส่งของ (รายเดือน)
+                            </button>
+                            <button onclick="openDelayReportModal('month')" class="bg-rose-500 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-rose-600 transition-all shadow-lg">
+                                <i data-lucide="alert-circle" class="w-5 h-5 mx-auto mb-2"></i>
+                                สรุปยอด Delay (รายเดือน)
+                            </button>
                         </div>
                         
-                        <!-- Date/Month Selectors -->
-                        <div id="report-date-selector" class="hidden">
-                            <label class="text-sm font-bold text-slate-400">Select Date</label>
-                            <input type="date" id="report-date-input" class="w-full mt-1 border rounded-lg px-3 py-3 text-lg font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600" />
+                        <div class="grid grid-cols-2 gap-4">
+                            <button onclick="openDispatchReportModal('day')" class="bg-blue-400 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-blue-500 transition-all shadow-lg">
+                                <i data-lucide="calendar" class="w-5 h-5 mx-auto mb-2"></i>
+                                สรุปยอดส่งของ (รายวัน)
+                            </button>
+                            <button onclick="openDelayReportModal('day')" class="bg-rose-400 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-rose-500 transition-all shadow-lg">
+                                <i data-lucide="clock" class="w-5 h-5 mx-auto mb-2"></i>
+                                สรุปยอด Delay (รายวัน)
+                            </button>
                         </div>
-                        <div id="delay-month-selector" class="hidden">
-                            <label class="text-sm font-bold text-slate-400">Select Month</label>
-                            <input type="month" id="delay-month-select" class="w-full mt-1 border rounded-lg px-3 py-3 text-lg font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600" />
-                        </div>
-                        <div id="delay-date-selector" class="hidden">
-                            <label class="text-sm font-bold text-slate-400">Select Date</label>
-                            <input type="date" id="delay-date-input" class="w-full mt-1 border rounded-lg px-3 py-3 text-lg font-bold text-slate-900 dark:text-slate-100 bg-white dark:bg-slate-900 border-slate-300 dark:border-slate-600" />
-                        </div>
-                        
-                        <!-- Generate Button -->
-                        <button onclick="generateUnifiedReport()" class="w-full bg-gradient-to-r from-blue-500 to-rose-500 text-white py-3 rounded-xl font-black text-sm uppercase tracking-widest hover:from-blue-600 hover:to-rose-600 transition-all shadow-lg">
-                            Generate Report
-                        </button>
                     </div>
                 </div>
             
-            <!-- Report Display Area -->
-            <div id="report-display-area" class="hidden">
-                <div class="glass-card p-8 rounded-3xl border border-slate-100 dark:border-slate-800">
-                    <div class="flex justify-between items-start mb-6">
-                        <h3 id="report-title" class="text-2xl font-black"></h3>
-                        <div class="flex gap-2">
-                            <button onclick="printReport()" class="bg-slate-200 dark:bg-slate-700 px-4 py-2 rounded-lg font-black text-sm">
-                                <i data-lucide="printer" class="w-4 h-4"></i> Print
-                            </button>
-                            <button onclick="clearReport()" class="bg-slate-200 dark:bg-slate-700 px-4 py-2 rounded-lg font-black text-sm">
-                                <i data-lucide="x" class="w-4 h-4"></i> Clear
-                            </button>
-                        </div>
-                    </div>
-                    <div id="report-content"></div>
-                </div>
-            </div>
-        </section>
+                    </section>
 
         <!-- HISTORY TAB -->
         <section id="tab-history" class="hidden space-y-6 animate-in fade-in duration-500">
@@ -732,7 +681,7 @@
                 <h2 class="text-3xl font-black uppercase">Dispatch <span class="text-primary">Logs</span></h2>
                 <div class="relative w-full md:w-80"><i data-lucide="search" class="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-slate-400"></i><input type="text" id="history-search" placeholder="ค้นหาประวัติ..." class="w-full pl-11 pr-4 py-3 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-xs outline-none font-bold"></div>
             </div>
-            <div id="history-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
+            <div id="history-container" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4"></div>
         </section>
     </main>
 
@@ -760,7 +709,7 @@
                         <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Total Dispatch Days</p>
                         <div class="flex items-baseline gap-2">
                             <h4 id="dispatch-total-days" class="text-5xl font-black text-blue-600">0</h4>
-                            <span class="text-blue-400 font-bold text-sm uppercase">Days</span>
+                            <span id="dispatch-total-days-label" class="text-blue-400 font-bold text-sm uppercase">Days</span>
                         </div>
                     </div>
                     <div class="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 flex flex-col justify-center">
@@ -771,11 +720,13 @@
                         </div>
                     </div>
                 </div>
-                <table class="w-full mb-12 border-collapse">
+                <table class="w-full mb-12 border-collapse table-fixed">
                     <thead>
                         <tr class="border-y-2 border-blue-500 bg-blue-50/50">
-                            <th class="py-5 px-4 text-left text-[11px] font-black uppercase italic">วันที่</th>
-                            <th class="py-5 px-4 text-right text-[11px] font-black uppercase italic">จำนวนรายการ</th>
+                            <th class="py-5 px-4 text-left text-[11px] font-black uppercase italic w-1/4">ลูกค้า</th>
+                            <th class="py-5 px-4 text-left text-[11px] font-black uppercase italic w-1/4">รายการสินค้า</th>
+                            <th class="py-5 px-4 text-center text-[11px] font-black uppercase italic w-1/4">วันที่ส่ง</th>
+                            <th class="py-5 px-4 text-right text-[11px] font-black uppercase italic w-1/4">จำนวน</th>
                         </tr>
                     </thead>
                     <tbody id="dispatch-report-table" class="divide-y divide-blue-100"></tbody>
@@ -815,9 +766,10 @@
                         <h1 class="text-3xl font-black tracking-tighter uppercase italic leading-none text-rose-600">Delayed Delivery Report</h1>
                         <p class="text-[10px] font-bold text-rose-400 mt-2 uppercase tracking-widest">รายงานรายการค้างส่งสะสม (เฉพาะยอดที่เกินกำหนดส่ง)</p>
                         <div class="mt-2 flex gap-2 items-center">
-                                <!-- ช่องเลือกเดือนถูกลบออก -->
-                                <label class="text-xs font-bold text-slate-400 ml-4">เลือกวัน:</label>
-                                <input type="date" id="delay-date-select" class="border rounded-lg px-2 py-1 text-xs font-bold" onchange="openDelayReportModal()" />
+                                <!-- ช่องเลือกเดือน -->
+                                <label class="text-xs font-bold text-slate-400 ml-4">เลือกเดือน:</label>
+                                <select id="delay-month-select" class="border rounded-lg px-2 py-1 text-xs font-bold" onchange="openDelayReportModal('month', parseInt(this.value))">
+                                </select>
                             </div>
                     </div>
                     <div class="text-right">
@@ -1277,7 +1229,7 @@
         async function updateChartsData() {
             const logs = await db.history.toArray();
             const orders = await db.orders.toArray();
-            // 1. Monthly History (Full Year)
+            // 1. Monthly History (Full Year)ฆ
             const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
             // Total Orders (ยอดที่ต้องส่ง) ใช้ originQty
             const monthlyTotalOrders = new Array(12).fill(0);
@@ -1420,45 +1372,6 @@
             `).join('');
             lucide.createIcons();
             updateChartsData();
-        }
-
-        async function openDelayReportModal() {
-            const all = await db.orders.toArray();
-            const selectedDate = document.getElementById('delay-date-select').value;
-            
-            let delayItems;
-            if (selectedDate) {
-                // กรองตามวันที่เลือก (แสดงรายการที่ค้างส่งในวันที่เลือก)
-                delayItems = all.filter(o => o.qty > 0 && o.deliveryDate === selectedDate)
-                                     .sort((a,b) => b.qty - a.qty); // เรียงตามจำนวนมากไปน้อย
-            } else {
-                // แสดงรายการค้างส่งทั้งหมด (เดิม)
-                delayItems = all.filter(o => o.qty > 0 && o.deliveryDate < todayStr)
-                                     .sort((a,b) => a.deliveryDate.localeCompare(b.deliveryDate));
-            }
-            
-            if (delayItems.length === 0) { 
-                showToast(selectedDate ? `ไม่มีรายการที่ค้างส่งในวันที่ ${selectedDate}` : "ไม่มีรายการที่ค้างส่ง (Delay) ในขณะนี้"); 
-                return; 
-            }
-
-            const reportDate = new Date().toLocaleDateString('th-TH', { 
-                year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' 
-            });
-            document.getElementById('report-date').innerText = reportDate;
-            document.getElementById('report-total-items').innerText = delayItems.length;
-            document.getElementById('report-total-units').innerText = delayItems.reduce((sum, o) => sum + o.qty, 0).toLocaleString();
-
-            document.getElementById('report-table-body').innerHTML = delayItems.map(o => `
-                <tr>
-                    <td class="py-5 px-4 font-black text-[11px] uppercase">${o.customer}</td>
-                    <td class="py-5 px-4"><div class="font-bold text-[11px] uppercase">${o.kanbanId || '-'}</div><div class="text-[8px] font-black text-primary uppercase">PART: ${o.salePart}</div></td>
-                    <td class="py-5 px-4 text-center font-black text-rose-500 text-[11px]">${o.deliveryDate}</td>
-                    <td class="py-5 px-4 text-right font-black text-lg text-rose-600">${o.qty.toLocaleString()}</td>
-                </tr>
-            `).join('');
-            document.getElementById('delay-report-modal').classList.remove('hidden');
-            lucide.createIcons();
         }
 
         // Selection & Multi-Dispatch
@@ -1763,91 +1676,9 @@
             if(tab === 'dispatch') { updateDispatchList(); setTimeout(() => document.getElementById('barcode-input').focus(), 200); }
             if(tab === 'stock') updateStockTable();
             if(tab === 'history') renderHistory();
-            if(tab === 'report') initializeReportPage();
         }
         
         lucide.createIcons();
-
-        // Report Page Functions
-        function initializeReportPage() {
-            // Setup event listeners for report type selection
-            document.getElementById('report-type-select').onchange = function() {
-                const type = this.value;
-                document.getElementById('report-month-selector').classList.toggle('hidden', type !== 'dispatch-monthly');
-                document.getElementById('report-date-selector').classList.toggle('hidden', type !== 'dispatch-daily');
-            };
-            
-            // Delay report มีแค่ monthly อยู่แล้ว
-            document.getElementById('delay-month-selector').classList.remove('hidden');
-            
-            // Initialize month selectors
-            initializeMonthSelectors();
-        }
-        
-        function initializeMonthSelectors() {
-            // Populate dispatch month selector (ยังคงใช้ dropdown สำหรับ dispatch)
-            const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
-            const currentYear = new Date().getFullYear();
-            
-            // Report month selector ใช้ month picker แล้ว ไม่ต้อง populate
-            
-            // Delay month selector ใช้ month picker แล้ว ไม่ต้อง populate
-        }
-        
-        function generateReport() {
-            console.log('generateReport called'); // Debug log
-            const type = document.getElementById('report-type-select').value;
-            console.log('generateReport type:', type); // Debug log
-            
-            if (type === 'dispatch-monthly') {
-                console.log('Calling openDispatchReportModal for monthly'); // Debug log
-                // ไม่ต้องเลือกเดือน ใช้เดือนปัจจุบันโดยอัตโนมัติ
-                openDispatchReportModal('month');
-            } else if (type === 'dispatch-daily') {
-                const date = document.getElementById('report-date-input').value;
-                console.log('generateReport date:', date); // Debug log
-                if (!date) {
-                    console.log('No date selected, showing toast'); // Debug log
-                    showToast('กรุณาเลือกวันที่');
-                    return;
-                }
-                console.log('Calling openDispatchReportModal for daily'); // Debug log
-                openDispatchReportModal('day', null, date);
-            } else {
-                console.log('Unknown report type:', type); // Debug log
-            }
-        }
-        
-        function generateDelayReport() {
-            const selectedType = document.querySelector('input[name="delay-report-type"]:checked').value;
-            
-            if (selectedType === 'delay-monthly') {
-                const monthInput = document.getElementById('delay-month-select').value;
-                if (!monthInput) {
-                    showToast('กรุณาเลือกเดือน');
-                    return;
-                }
-                // แปลงจาก YYYY-MM เป็น month index (0-11)
-                const [year, month] = monthInput.split('-').map(Number);
-                openDelayReportModal('month', month - 1);
-            } else if (selectedType === 'delay-daily') {
-                const date = document.getElementById('delay-date-input').value;
-                if (!date) {
-                    showToast('กรุณาเลือกวันที่');
-                    return;
-                }
-                openDelayReportModal('day', null, date);
-            }
-        }
-        
-        function printReport() {
-            window.print();
-        }
-        
-        function clearReport() {
-            document.getElementById('report-display-area').classList.add('hidden');
-            document.getElementById('report-content').innerHTML = '';
-        }
 
         function openConfirmModal() { document.getElementById('confirm-modal').classList.remove('hidden'); }
         async function clearOrdersOnly() { await db.orders.clear(); closeModal('confirm-modal'); showTab('dashboard'); showToast("ล้างรายการ Order แล้ว"); }
