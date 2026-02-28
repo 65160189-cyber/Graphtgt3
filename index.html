@@ -535,14 +535,20 @@
             lucide.createIcons();
         }
 
-        function openDelayReportModal(type = 'month') {
+        function openDelayReportModal(type = 'month', monthOffset = 0) {
             // Delay Report Modal with real data
             const modal = document.getElementById('delay-report-modal');
             modal.classList.remove('hidden');
             modal.classList.add('flex', 'items-center', 'justify-center');
             
-            // Update report date
-            document.getElementById('report-date').innerText = new Date().toLocaleDateString('th-TH', { 
+            // Calculate target month based on monthOffset
+            const targetDate = new Date();
+            targetDate.setMonth(targetDate.getMonth() + monthOffset);
+            const targetMonth = targetDate.getMonth();
+            const targetYear = targetDate.getFullYear();
+            
+            // Update report date with selected month
+            document.getElementById('report-date').innerText = targetDate.toLocaleDateString('th-TH', { 
                 year: 'numeric', 
                 month: 'long', 
                 day: 'numeric', 
@@ -550,23 +556,35 @@
                 minute: '2-digit' 
             });
             
+            // Populate month selector
+            populateMonthSelector(targetMonth);
+            
             // Get delay data from orders
             db.orders.toArray().then(all => {
                 console.log('All orders in database:', all); // Debug log
                 console.log('Total orders count:', all.length); // Debug log
+                console.log('Target month:', targetMonth, 'Target year:', targetYear); // Debug log
                 
                 const todayStr = new Date().toISOString().split('T')[0];
                 const today = new Date(todayStr);
                 console.log('Today date:', todayStr); // Debug log
                 
-                // Check each order's delivery date
-                all.forEach(order => {
+                // Filter orders by selected month and check for delays
+                const monthFilteredOrders = all.filter(order => {
+                    const orderDate = new Date(order.deliveryDate);
+                    return orderDate.getMonth() === targetMonth && orderDate.getFullYear() === targetYear;
+                });
+                
+                console.log('Orders in selected month:', monthFilteredOrders); // Debug log
+                
+                // Check each order's delivery date for delay
+                monthFilteredOrders.forEach(order => {
                     const deliveryDate = new Date(order.deliveryDate);
                     const isDelay = order.qty > 0 && deliveryDate < today;
                     console.log(`Order: ${order.kanbanId}, Delivery: ${order.deliveryDate}, Delivery Date Obj: ${deliveryDate.toISOString()}, Qty: ${order.qty}, Is Delay: ${isDelay}`);
                 });
                 
-                const delayItems = all.filter(o => {
+                const delayItems = monthFilteredOrders.filter(o => {
                     const deliveryDate = new Date(o.deliveryDate);
                     return o.qty > 0 && deliveryDate < today;
                 });
@@ -622,6 +640,37 @@
             });
         }
 
+        function populateMonthSelector(selectedMonth) {
+            const monthSelect = document.getElementById('delay-month-select');
+            const months = [
+                'มกราคม', 'กุมภาพันธ์', 'มีนาคม', 'เมษายน', 'พฤษภาคม', 'มิถุนายน',
+                'กรกฎาคม', 'สิงหาคม', 'กันยายน', 'ตุลาคม', 'พฤศจิกายน', 'ธันวาคม'
+            ];
+            
+            // Get current month and year
+            const currentDate = new Date();
+            const currentMonth = currentDate.getMonth();
+            const currentYear = currentDate.getFullYear();
+            
+            // Clear existing options
+            monthSelect.innerHTML = '';
+            
+            // Add options for last 12 months
+            for (let i = 0; i < 12; i++) {
+                const date = new Date(currentYear, currentMonth - i, 1);
+                const month = date.getMonth();
+                const year = date.getFullYear();
+                const monthOffset = -i;
+                
+                const option = document.createElement('option');
+                option.value = monthOffset;
+                option.textContent = `${months[month]} ${year}`;
+                option.selected = month === selectedMonth;
+                
+                monthSelect.appendChild(option);
+            }
+        }
+
         tailwind.config = { darkMode: 'class', theme: { extend: { colors: { primary: '#3b82f6', accent: '#10b981' } } } }
     </script>
     <style>
@@ -655,6 +704,51 @@
     </style>
 </head>
 <body class="bg-slate-50 text-slate-900 dark:bg-slate-950 dark:text-slate-100 min-h-screen transition-colors duration-300">
+    <!-- LOGIN SCREEN -->
+    <div id="login-screen" class="fixed inset-0 bg-gradient-to-br from-blue-600 via-blue-700 to-indigo-800 flex items-center justify-center p-6 z-[999]">
+        <div class="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl p-8 w-full max-w-md animate-in zoom-in-95 duration-300">
+            <div class="text-center mb-8">
+                <div class="w-16 h-16 bg-blue-100 dark:bg-blue-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i data-lucide="shield-check" class="w-8 h-8 text-blue-600 dark:text-blue-400"></i>
+                </div>
+                <h1 class="text-2xl font-black text-slate-900 dark:text-white mb-2">Warehouse System</h1>
+                <p class="text-slate-600 dark:text-slate-400 text-sm">TGT3 Multi-User Dispatch</p>
+            </div>
+            
+            <form id="login-form" class="space-y-6">
+                <div>
+                    <label class="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2">Username</label>
+                    <div class="relative">
+                        <i data-lucide="user" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="text" id="username" class="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-black text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter username" required>
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-black text-slate-700 dark:text-slate-300 mb-2">Password</label>
+                    <div class="relative">
+                        <i data-lucide="lock" class="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"></i>
+                        <input type="password" id="password" class="w-full pl-10 pr-4 py-3 border border-slate-200 dark:border-slate-700 rounded-xl bg-white dark:bg-slate-800 text-slate-900 dark:text-white font-black text-sm outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="Enter password" required>
+                    </div>
+                </div>
+                
+                <div id="login-error" class="hidden bg-rose-50 dark:bg-rose-500/20 border border-rose-200 dark:border-rose-500 rounded-xl p-3 text-rose-600 dark:text-rose-400 text-xs font-black text-center">
+                    Invalid username or password
+                </div>
+                
+                <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-black text-sm uppercase tracking-widest transition-all active:scale-95 shadow-lg">
+                    Sign In
+                </button>
+                
+                <div class="text-center">
+                    <p class="text-xs text-slate-500 dark:text-slate-400">Default: admin / 1234</p>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MAIN APPLICATION (Hidden until login) -->
+    <div id="main-app" class="hidden">
 
     <!-- Mobile Top Bar -->
     <header class="md:hidden sticky top-0 z-40 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 px-4 py-3 flex justify-between items-center">
@@ -744,6 +838,10 @@
                 <p class="text-[9px] font-black uppercase text-slate-400 mb-1">System Time</p>
                 <p id="sidebar-clock" class="text-lg font-black tracking-tighter">00:00:00</p>
             </div>
+            <button onclick="logout()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-rose-50 dark:bg-rose-500/10 border border-rose-100 dark:border-rose-900/30 text-rose-500 dark:text-rose-400 hover:bg-rose-500 hover:text-white transition-all">
+                <span class="text-[10px] font-black uppercase tracking-widest">Logout</span>
+                <i data-lucide="log-out" class="w-4 h-4"></i>
+            </button>
             <button onclick="toggleTheme()" class="w-full flex items-center justify-between px-4 py-3 rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-100 dark:border-slate-700">
                 <span class="text-[10px] font-black uppercase tracking-widest text-slate-400">Theme</span>
                 <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-yellow-400"></i><i data-lucide="moon" class="w-4 h-4 block dark:hidden text-slate-400"></i>
@@ -957,15 +1055,11 @@
                             </button>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-4">
+                        <div class="grid grid-cols-1 gap-4">
                             <div class="bg-blue-400 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-blue-500 transition-all shadow-lg cursor-pointer flex flex-col items-center justify-center" onclick="showDatePickerForDailyDispatch()">
                                 <i data-lucide="calendar" class="w-5 h-5 mx-auto mb-2"></i>
                                 สรุปยอดส่งของ (รายวัน)
                             </div>
-                            <button onclick="openDelayReportModal('day')" class="bg-rose-400 text-white py-4 rounded-2xl font-black uppercase text-sm hover:bg-rose-500 transition-all shadow-lg">
-                                <i data-lucide="clock" class="w-5 h-5 mx-auto mb-2"></i>
-                                สรุปยอด Delay (รายวัน)
-                            </button>
                         </div>
                     </div>
                 </div>
@@ -1119,7 +1213,7 @@
     </div>
 
     <!-- FLOATING SHIPMENT BAR -->
-    <div id="shipment-bar" class="fixed bottom-24 md:bottom-8 left-1/2 -translate-x-1/2 z-[50] hidden w-full max-w-lg px-4 animate-in slide-in-from-bottom-8">
+    <div id="shipment-bar" class="fixed bottom-32 md:bottom-16 left-1/2 -translate-x-1/2 z-[50] hidden w-full max-w-lg px-4 animate-in slide-in-from-bottom-8">
         <div class="bg-slate-900 dark:bg-white text-white dark:text-slate-900 rounded-full px-4 py-4 shadow-2xl flex items-center justify-between border border-white/10">
             <div class="flex items-center gap-3 ml-4">
                 <div class="bg-primary text-white p-2 rounded-full"><i data-lucide="shopping-cart" class="w-4 h-4"></i></div>
@@ -1164,9 +1258,9 @@
                     <div class="relative">
                         <select id="multi-select-destination" class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 px-4 py-4 rounded-2xl appearance-none font-black text-xs outline-none focus:ring-2 focus:ring-primary/20 transition-all">
                             <option value="TMRD">TMRD (Thai Meira RD)</option>
-                            <option value="TGT1">TGT1 (Thai Goshi Plant 1)</option>
-                            <option value="TGT2">TGT2 (Thai Goshi Plant 2)</option>
-                            <option value="TGT3" selected>TGT3 (Thai Goshi Plant 3)</option>
+                            <option value="TGT1">TGT1 (Toyoda Gosei Thailand 1)</option>
+                            <option value="TGT2">TGT2 (Toyoda Gosei Thailand 2)</option>
+                            <option value="TGT3" selected>TGT3 (Toyoda Gosei Thailand 3)</option>
                         </select>
                         <i data-lucide="chevron-down" class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
                     </div>
@@ -1231,6 +1325,11 @@
         </div>
     </div>
 
+    <!-- Scroll to Top Button -->
+    <button onclick="scrollToTop()" id="scroll-to-top" class="fixed bottom-24 right-8 z-[9999] bg-primary hover:bg-blue-600 text-white p-4 rounded-full shadow-2xl transition-all duration-300 opacity-0 invisible scale-0 active:scale-95">
+        <i data-lucide="arrow-up" class="w-5 h-5"></i>
+    </button>
+
     <!-- Mobile Navigation -->
     <nav class="fixed bottom-0 left-0 right-0 md:hidden bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 z-40">
         <div class="flex justify-around items-center h-20">
@@ -1264,6 +1363,220 @@
             orders: '++id, [customer+salePart+deliveryDate+orderNo+kanbanId], customer, salePart, kanbanId, deliveryDate, qty, round, orderNo',
             history: '++id, timestamp, customer, round, itemsJson, destination'
         });
+
+        // WebSocket Connection for Multi-User Real-time Sync
+        let ws = null;
+        let clientId = null;
+        let reconnectAttempts = 0;
+        const maxReconnectAttempts = 5;
+
+        function initWebSocket() {
+            try {
+                // Check if server is ready by making a simple HTTP request first
+                fetch('http://localhost:3001/api/status')
+                    .then(() => {
+                        // Server is ready, connect WebSocket
+                        console.log('🌐 Server is ready, connecting WebSocket...');
+                        connectWebSocket();
+                    })
+                    .catch(() => {
+                        // Server not ready, try anyway
+                        console.log('⚠️ Server status check failed, trying WebSocket anyway...');
+                        connectWebSocket();
+                    });
+            } catch (error) {
+                console.error('Failed to initialize WebSocket:', error);
+                showToast('Failed to connect to multi-user server');
+            }
+        }
+        
+        function connectWebSocket() {
+            try {
+                // Connect to WebSocket server
+                const wsUrl = `ws://localhost:3001`;
+                console.log('🔗 Connecting to:', wsUrl);
+                ws = new WebSocket(wsUrl);
+                
+                // Set connection timeout
+                const connectionTimeout = setTimeout(() => {
+                    if (ws.readyState === WebSocket.CONNECTING) {
+                        console.log('⏰ Connection timeout, closing...');
+                        ws.close();
+                        showToast('❌ หมดเวลาเชื่อมต่อ ลองใหม่');
+                    }
+                }, 5000);
+                
+                ws.onopen = function() {
+                    clearTimeout(connectionTimeout);
+                    console.log('🔗 Connected to TGT3 Multi-User Server');
+                    reconnectAttempts = 0;
+                    
+                    // Show connection status in UI
+                    showToast('🔗 เชื่อมต่อ Multi-User Server สำเร็จ');
+                    
+                    // Send heartbeat every 30 seconds
+                    setInterval(() => {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ type: 'heartbeat' }));
+                        }
+                    }, 30000);
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('📨 WebSocket message received:', data);
+                        handleWebSocketMessage(data);
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    console.log('❌ Disconnected from server');
+                    
+                    // Attempt to reconnect
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        console.log(`🔄 Reconnecting... Attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
+                        showToast(`🔄 พยายามเชื่อมต่อใหม่... ${reconnectAttempts}/${maxReconnectAttempts}`);
+                        setTimeout(connectWebSocket, 3000);
+                    } else {
+                        console.log('❌ Max reconnection attempts reached');
+                        showToast('❌ ไม่สามารถเชื่อมต่อได้ กรุณารีเฟรชหน้า');
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    showToast('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
+                };
+                
+            } catch (error) {
+                console.error('Failed to initialize WebSocket:', error);
+                showToast('Failed to connect to multi-user server');
+            }
+        }
+        
+        function handleWebSocketMessage(data) {
+            console.log('📨 Received WebSocket message:', data);
+            
+            switch (data.type) {
+                case 'connection':
+                    clientId = data.clientId;
+                    console.log('🆔 Client ID:', clientId);
+                    showToast(data.message || 'Connected to server');
+                    break;
+                    
+                case 'dispatch_update':
+                    // Another user dispatched items - update our UI
+                    if (data.action === 'completed') {
+                        console.log('📦 Another user completed dispatch:', data.items);
+                        
+                        // Update local database with the dispatched items
+                        if (data.items && data.items.length > 0) {
+                            const updatePromises = data.items.map(async (item) => {
+                                try {
+                                    const order = await db.orders.get(item.orderId);
+                                    if (order) {
+                                        await db.orders.update(item.orderId, {
+                                            qty: order.qty - item.qty,
+                                            shippedQty: (order.shippedQty || 0) + item.qty
+                                        });
+                                        console.log(`✅ Updated order ${item.orderId}: -${item.qty} qty`);
+                                    }
+                                } catch (error) {
+                                    console.error('Error updating local database:', error);
+                                }
+                            });
+                            
+                            // Wait for all database updates to complete
+                            Promise.all(updatePromises).then(() => {
+                                console.log('🔄 Database sync completed, updating UI...');
+                                // Update UI after database is synced
+                                updateDashboard();
+                                updateDispatchList();
+                                updateShipmentBar();
+                                showToast(`${data.items?.length || 0} items dispatched by another user`);
+                            });
+                        } else {
+                            // No items to update, just refresh UI
+                            updateDashboard();
+                            updateDispatchList();
+                            updateShipmentBar();
+                            showToast('Dispatch update received');
+                        }
+                    }
+                    break;
+                    
+                case 'system_update':
+                    // General system updates
+                    console.log('🔄 System update:', data.data);
+                    break;
+                    
+                case 'client_count':
+                    // Update connected users count
+                    console.log(`👥 Connected users: ${data.count}`);
+                    updateUserCount(data.count);
+                    break;
+                    
+                default:
+                    console.log('Unknown message type:', data.type);
+            }
+        }
+        
+        function sendWebSocketMessage(type, data = {}) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                const message = {
+                    type: type,
+                    clientId: clientId,
+                    timestamp: new Date().toISOString(),
+                    ...data
+                };
+                ws.send(JSON.stringify(message));
+                console.log('📤 Sent WebSocket message:', message);
+            } else {
+                console.log('WebSocket not connected, cannot send message');
+            }
+        }
+        
+        function notifyDispatchUpdate(items, action = 'completed') {
+            console.log('📤 Sending dispatch notification:', { items, action });
+            sendWebSocketMessage('dispatch', {
+                action: action,
+                items: items
+            });
+        }
+        
+        function updateUserCount(count) {
+            // You can add UI element to show connected users count
+            const countElement = document.getElementById('connected-users-count');
+            if (countElement) {
+                countElement.textContent = count;
+            }
+        }
+
+        // Scroll to Top functionality
+        function scrollToTop() {
+            window.scrollTo({
+                top: 0,
+                behavior: 'smooth'
+            });
+        }
+
+        // Show/hide scroll to top button based on scroll position
+        function handleScroll() {
+            const scrollButton = document.getElementById('scroll-to-top');
+            if (scrollButton) {
+                if (window.pageYOffset > 300) {
+                    scrollButton.classList.remove('opacity-0', 'invisible', 'scale-0');
+                    scrollButton.classList.add('opacity-100', 'visible', 'scale-100');
+                } else {
+                    scrollButton.classList.add('opacity-0', 'invisible', 'scale-0');
+                    scrollButton.classList.remove('opacity-100', 'visible', 'scale-100');
+                }
+            }
+        }
 
         const getTodayStr = () => new Date().toISOString().split('T')[0];
         const todayStr = getTodayStr();
@@ -1325,10 +1638,37 @@
             // Register DataLabels plugin
             Chart.register(ChartDataLabels);
             
-            const ctxMonthly = document.getElementById('chart-monthly').getContext('2d');
-            const ctxDaily = document.getElementById('chart-daily-trend').getContext('2d');
-            const ctxDelayMonthly = document.getElementById('chart-delay-monthly').getContext('2d');
-            const ctxDelayDaily = document.getElementById('chart-delay-daily').getContext('2d');
+            // ทำลาย chart เก่าก่อนสร้างใหม่ (ป้องกัน error Canvas is already in use)
+            if (myCharts && typeof myCharts === 'object') {
+                Object.keys(myCharts).forEach(key => {
+                    if (myCharts[key] && typeof myCharts[key].destroy === 'function') {
+                        try {
+                            myCharts[key].destroy();
+                        } catch (error) {
+                            console.warn(`Failed to destroy chart ${key}:`, error);
+                        }
+                    }
+                });
+            }
+            
+            // รีเซ็ตตัวแปร myCharts
+            myCharts = {};
+            
+            // ตรวจสอบว่า canvas element มีอยู่จริงก่อนสร้าง chart
+            const monthlyCanvas = document.getElementById('chart-monthly');
+            const dailyCanvas = document.getElementById('chart-daily-trend');
+            const delayMonthlyCanvas = document.getElementById('chart-delay-monthly');
+            const delayDailyCanvas = document.getElementById('chart-delay-daily');
+            
+            if (!monthlyCanvas || !dailyCanvas || !delayMonthlyCanvas || !delayDailyCanvas) {
+                console.warn('Some chart canvas elements are missing, skipping chart initialization');
+                return;
+            }
+            
+            const ctxMonthly = monthlyCanvas.getContext('2d');
+            const ctxDaily = dailyCanvas.getContext('2d');
+            const ctxDelayMonthly = delayMonthlyCanvas.getContext('2d');
+            const ctxDelayDaily = delayDailyCanvas.getContext('2d');
             const isDark = document.documentElement.classList.contains('dark');
 
             // Dispatch Monthly History: Line (Total Orders) + Bar (Actual Orders)
@@ -1676,6 +2016,89 @@
             if (selectedOrderIds.has(id)) selectedOrderIds.delete(id);
             else selectedOrderIds.add(id);
             updateShipmentBar(); updateDispatchList(); 
+        }
+
+        // QR Code Scanner Function - ตรวจสอบ Kanban ID และ Sale Part ให้ตรงกัน
+        async function scanAndSelectOrder(barcodeValue) {
+            try {
+                console.log('🔍 Scanning QR Code:', barcodeValue);
+                
+                // ค้นหา order ที่ตรงกับ QR Code
+                const orders = await db.orders.where('qty').above(0).toArray();
+                
+                // ค้นหาที่ Kanban ID ตรงกันและ Sale Part ตรงกัน
+                let matchedOrder = null;
+                
+                // ลองค้นหาจาก Kanban ID ก่อน
+                matchedOrder = orders.find(o => 
+                    o.kanbanId && o.kanbanId.toUpperCase() === barcodeValue
+                );
+                
+                // ถ้าไม่เจอ ลองค้นหาจาก Sale Part
+                if (!matchedOrder) {
+                    matchedOrder = orders.find(o => 
+                        o.salePart && o.salePart.toUpperCase() === barcodeValue
+                    );
+                }
+                
+                // ถ้ายังไม่เจอ ลองค้นหาแบบ contains (สำหรับกรณีมีข้อมูลอื่นผสม)
+                if (!matchedOrder) {
+                    matchedOrder = orders.find(o => 
+                        o.customer.toUpperCase().includes(barcodeValue) || 
+                        o.salePart.toUpperCase().includes(barcodeValue) || 
+                        o.orderNo.toUpperCase().includes(barcodeValue) || 
+                        (o.kanbanId && o.kanbanId.toUpperCase().includes(barcodeValue))
+                    );
+                }
+                
+                if (matchedOrder) {
+                    console.log('✅ Found order:', matchedOrder);
+                    
+                    // ตรวจสอบว่า Kanban ID และ Sale Part ตรงกันหรือไม่
+                    const kanbanMatch = matchedOrder.kanbanId && matchedOrder.kanbanId.toUpperCase() === barcodeValue;
+                    const partMatch = matchedOrder.salePart && matchedOrder.salePart.toUpperCase() === barcodeValue;
+                    
+                    if (kanbanMatch && partMatch) {
+                        console.log('🎯 Perfect match: Kanban ID and Sale Part both match');
+                        showToast(`🎯 ตรงกันทั้ง Kanban ID และ Sale Part: ${matchedOrder.customer}`);
+                    } else if (kanbanMatch) {
+                        console.log('📋 Kanban ID match');
+                        showToast(`📋 ตรง Kanban ID: ${matchedOrder.customer} - ${matchedOrder.kanbanId}`);
+                    } else if (partMatch) {
+                        console.log('🔧 Sale Part match');
+                        showToast(`🔧 ตรง Sale Part: ${matchedOrder.customer} - ${matchedOrder.salePart}`);
+                    } else {
+                        console.log('🔍 Partial match');
+                        showToast(`🔍 พบข้อมูลบางส่วน: ${matchedOrder.customer} - ${matchedOrder.kanbanId || matchedOrder.salePart}`);
+                    }
+                    
+                    // เลือก order นี้
+                    selectedOrderIds.add(matchedOrder.id);
+                    updateShipmentBar();
+                    updateDispatchList();
+                    
+                    // เคลียร์ช่อง barcode
+                    document.getElementById('barcode-input').value = '';
+                    
+                    // โฟกัสกลับไปที่ช่อง barcode เพื่อสแกนต่อ
+                    setTimeout(() => {
+                        document.getElementById('barcode-input').focus();
+                    }, 100);
+                    
+                } else {
+                    console.log('❌ No order found for QR Code:', barcodeValue);
+                    showToast(`❌ ไม่พบข้อมูล: ${barcodeValue}`);
+                    
+                    // สั่นช่อง input
+                    const input = document.getElementById('barcode-input');
+                    input.classList.add('animate-pulse');
+                    setTimeout(() => input.classList.remove('animate-pulse'), 1000);
+                }
+                
+            } catch (error) {
+                console.error('Error scanning QR Code:', error);
+                showToast('❌ เกิดข้อผิดพลาดในการสแกน');
+            }
         } 
 
         function clearSelection() {
@@ -1755,6 +2178,9 @@
             const historyId = await db.history.add({ customer: primaryCustomer, timestamp: dispatchDateTime, round: selectedRoundInModal, itemsJson: JSON.stringify(itemsToShip), destination: destination });
             closeModal('multi-dispatch-modal'); selectedOrderIds.clear(); updateShipmentBar(); updateDispatchList();
             showToast(`ส่งสินค้าเรียบร้อย ${totalQty} ชิ้น`); viewInvoice(historyId); updateDashboard();
+            
+            // Notify other users about this dispatch
+            notifyDispatchUpdate(itemsToShip, 'completed');
         }
 
         // Refund Logic
@@ -1960,6 +2386,8 @@
         function downloadInvoicePDF() { html2pdf().set({ margin: 10, filename: 'TGT3_Delivery_Bill.pdf', jsPDF: { format: 'a4' } }).from(document.getElementById('invoice-print-area')).save(); }
         
         function showTab(tab) {
+            console.log('🔄 showTab called with:', tab); // Debug log
+            
             ['dashboard', 'dispatch', 'stock', 'history', 'report'].forEach(t => {
                 document.getElementById(`tab-${t}`).classList.add('hidden');
                 if(document.getElementById(`d-nav-${t}`)) document.getElementById(`d-nav-${t}`).classList.remove('sidebar-btn-active');
@@ -1969,8 +2397,11 @@
             if(document.getElementById(`d-nav-${tab}`)) document.getElementById(`d-nav-${tab}`).classList.add('sidebar-btn-active');
             if(document.getElementById(`m-nav-${tab}`)) document.getElementById(`m-nav-${tab}`).classList.add('text-primary');
             
-            if(tab === 'dashboard') updateDashboard();
-            if(tab === 'dispatch') { updateDispatchList(); setTimeout(() => document.getElementById('barcode-input').focus(), 200); }
+            if(tab === 'dashboard') {
+                console.log('📊 Loading Dashboard tab'); // Debug log
+                updateDashboard();
+            }
+            if(tab === 'dispatch') { updateDispatchList(); /* ลบการ focus อัตโนมัติ */ }
             if(tab === 'stock') updateStockTable();
             if(tab === 'history') renderHistory();
         }
@@ -1980,18 +2411,131 @@
         function openConfirmModal() { document.getElementById('confirm-modal').classList.remove('hidden'); }
         async function clearOrdersOnly() { await db.orders.clear(); closeModal('confirm-modal'); showTab('dashboard'); showToast("ล้างรายการ Order แล้ว"); }
 
-        // Event Listeners
-        document.getElementById('stock-search').oninput = updateStockTable;
-        document.getElementById('history-search').oninput = renderHistory;
-        document.getElementById('barcode-input').oninput = updateDispatchList;
-        
-        window.onload = () => {
+        // Login System
+        function checkLoginStatus() {
+            const isLoggedIn = localStorage.getItem('isLoggedIn');
+            if (isLoggedIn === 'true') {
+                showMainApp();
+            } else {
+                showLoginScreen();
+            }
+        }
+
+        function showLoginScreen() {
+            document.getElementById('login-screen').classList.remove('hidden');
+            document.getElementById('main-app').classList.add('hidden');
+            document.body.style.overflow = 'hidden';
+            
+            // เคลียร์ฟอร์ม login
+            document.getElementById('login-form').reset();
+            document.getElementById('login-error').classList.add('hidden');
+        }
+
+        function showMainApp() {
+            document.getElementById('login-screen').classList.add('hidden');
+            document.getElementById('main-app').classList.remove('hidden');
+            document.body.style.overflow = '';
+            
+            // Initialize app after successful login
+            initializeApp();
+        }
+
+        function handleLogin(event) {
+            event.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const password = document.getElementById('password').value;
+            const errorDiv = document.getElementById('login-error');
+            
+            // Simple authentication (admin/1234)
+            if (username === 'admin' && password === '1234') {
+                // Store login state
+                localStorage.setItem('isLoggedIn', 'true');
+                localStorage.setItem('username', username);
+                
+                // Show main app
+                showMainApp();
+                
+                // Clear form
+                document.getElementById('login-form').reset();
+                errorDiv.classList.add('hidden');
+                
+                showToast('🎉 เข้าสู่ระบบสำเร็จ!');
+            } else {
+                // Show error
+                errorDiv.classList.remove('hidden');
+                document.getElementById('username').focus();
+                
+                // Shake animation
+                const form = document.getElementById('login-form');
+                form.classList.add('animate-pulse');
+                setTimeout(() => form.classList.remove('animate-pulse'), 1000);
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('isLoggedIn');
+            localStorage.removeItem('username');
+            
+            // เคลียร์ช่อง username และ password
+            document.getElementById('username').value = '';
+            document.getElementById('password').value = '';
+            document.getElementById('login-error').classList.add('hidden');
+            
+            showLoginScreen();
+            showToast('👋 ออกจากระบบแล้ว');
+        }
+
+        function initializeApp() {
+            console.log('🚀 initializeApp called'); // Debug log
+            
             if(localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
             document.getElementById('current-date-display').innerText = new Date().toLocaleDateString('en-GB', { dateStyle: 'full' });
             initDashboardCharts();
             updateChartsData();
             updateClock(); 
+            
+            // เปิดหน้า Dashboard เป็นหน้าแรกเสมอหลัง login
+            console.log('📊 Calling showTab(dashboard) from initializeApp'); // Debug log
             showTab('dashboard');
+            
+            // Initialize WebSocket connection for multi-user real-time sync
+            // Add delay to ensure everything is loaded
+            setTimeout(() => {
+                initWebSocket();
+            }, 1000);
+            
+            // Initialize scroll button state
+            handleScroll();
+        }
+
+        // Event Listeners
+        document.getElementById('login-form').addEventListener('submit', handleLogin);
+        
+        // Check login status on page load
+        document.addEventListener('DOMContentLoaded', checkLoginStatus);
+
+        // Event Listeners for main app
+        document.getElementById('stock-search').oninput = updateStockTable;
+        document.getElementById('history-search').oninput = renderHistory;
+        
+        // QR Code Scanner - จับข้อมูลและเลือก order อัตโนมัติ
+        document.getElementById('barcode-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                const qrValue = this.value.trim().toUpperCase();
+                if (qrValue) {
+                    scanAndSelectOrder(qrValue);
+                }
+            }
+        });
+        
+        document.getElementById('barcode-input').oninput = updateDispatchList;
+        
+        // Add scroll event listener
+        window.addEventListener('scroll', handleScroll);
+        
+        window.onload = () => {
+            // Login check is handled by checkLoginStatus function
         };
     </script>
 </body>
