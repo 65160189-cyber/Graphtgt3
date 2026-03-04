@@ -529,10 +529,21 @@
             const days = Object.keys(summary).length;
             const totalUnits = Object.values(summary).reduce((a, b) => a + (b.items ? b.items.reduce((sum, item) => sum + item.qty, 0) : b), 0);
             
-            // แสดง Days หรือ Month ตามประเภทรายงาน
+            // นับจำนวนรายการสินค้าที่ส่งทั้งหมด (เหมือน Delay order items)
+            let totalItems = 0;
+            Object.values(summary).forEach(daySummary => {
+                if (daySummary.items && Array.isArray(daySummary.items)) {
+                    totalItems += daySummary.items.length;
+                } else {
+                    // ถ้าเป็นรายเดือนที่เป็นตัวเลขเดียว ให้นับเป็น 1 รายการ
+                    totalItems += 1;
+                }
+            });
+            
+            // แสดง Items ตามประเภทรายงาน
             const isMonthly = label.includes('รายเดือน');
-            document.getElementById('dispatch-total-days').innerText = days;
-            document.getElementById('dispatch-total-days-label').innerText = isMonthly ? 'Month' : 'Days';
+            document.getElementById('dispatch-total-days').innerText = totalItems;
+            document.getElementById('dispatch-total-days-label').innerText = isMonthly ? 'Items' : 'Items';
             document.getElementById('dispatch-total-units').innerText = totalUnits.toLocaleString();
             document.getElementById('dispatch-report-date').innerText = new Date().toLocaleDateString('th-TH', { 
                 year: 'numeric', 
@@ -1108,10 +1119,10 @@
                 </div>
                 <div class="grid grid-cols-2 gap-6 mb-12">
                     <div class="bg-blue-50 p-8 rounded-[2rem] border border-blue-100 flex flex-col justify-center">
-                        <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Total Dispatch Days</p>
+                        <p class="text-[10px] font-black text-blue-400 uppercase tracking-widest mb-2">Total Order Items</p>
                         <div class="flex items-baseline gap-2">
                             <h4 id="dispatch-total-days" class="text-5xl font-black text-blue-600">0</h4>
-                            <span id="dispatch-total-days-label" class="text-blue-400 font-bold text-sm uppercase">Days</span>
+                            <span id="dispatch-total-days-label" class="text-blue-400 font-bold text-sm uppercase">Items</span>
                         </div>
                     </div>
                     <div class="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 flex flex-col justify-center">
