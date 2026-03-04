@@ -222,7 +222,7 @@
             confirmBtn.onclick = function() {
                 const selectedMonth = monthInput.value;
                 document.body.removeChild(modal);
-                openDispatchReportModal('month', null, selectedMonth);
+                openDispatchReportModal('month', selectedMonth);
             };
             
             cancelBtn.onclick = function() {
@@ -403,7 +403,7 @@
             dateInput.focus();
         }
 
-        function openDispatchReportModal(type) {
+        function openDispatchReportModal(type, selectedMonth) {
             closeModal('report-type-modal');
             
             // สรุปยอดส่งของ (dispatch) รายเดือน หรือ รายวัน
@@ -413,33 +413,44 @@
                 let desc = '';
                 
                 if (type === 'month') {
-                    // รายเดือน: ใช้เดือนปัจจุบัน
-                    const now = new Date();
-                    const monthIdx = now.getMonth();
-                    const thisYear = now.getFullYear();
+                    // รายเดือน: ใช้เดือนที่เลือก
+                    let targetMonth, targetYear;
+                    
+                    if (selectedMonth) {
+                        // ใช้เดือนที่เลือกจาก month picker
+                        const [year, month] = selectedMonth.split('-');
+                        targetMonth = parseInt(month) - 1; // JavaScript month is 0-11
+                        targetYear = parseInt(year);
+                    } else {
+                        // ใช้เดือนปัจจุบัน (fallback)
+                        const now = new Date();
+                        targetMonth = now.getMonth();
+                        targetYear = now.getFullYear();
+                    }
+                    
                     const monthNamesTH = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.'];
                     
-                    // นับจำนวนรายการที่ส่งในเดือนปัจจุบัน
-                    const currentMonthLogs = logs.filter(log => {
+                    // นับจำนวนรายการที่ส่งในเดือนที่เลือก
+                    const selectedMonthLogs = logs.filter(log => {
                         const logDate = new Date(log.timestamp);
-                        return logDate.getMonth() === monthIdx && logDate.getFullYear() === thisYear;
+                        return logDate.getMonth() === targetMonth && logDate.getFullYear() === targetYear;
                     });
                     
                     let totalItems = 0;
                     let allItems = [];
                     
-                    currentMonthLogs.forEach(log => {
+                    selectedMonthLogs.forEach(log => {
                         const items = JSON.parse(log.itemsJson);
                         totalItems += items.length;
                         allItems.push(...items);
                     });
                     
-                    summary[monthNamesTH[monthIdx] + ' ' + (thisYear + 543)] = {
+                    summary[monthNamesTH[targetMonth] + ' ' + (targetYear + 543)] = {
                         total: totalItems,
                         items: allItems
                     };
                     label = 'สรุปยอดส่งของ (รายเดือน)';
-                    desc = 'ข้อมูลจากประวัติการส่งของ (' + monthNamesTH[monthIdx] + ' ' + (thisYear + 543) + ')';
+                    desc = 'ข้อมูลจากประวัติการส่งของ (' + monthNamesTH[targetMonth] + ' ' + (targetYear + 543) + ')';
                     
                 } else {
                     // รายวัน: ตามวันที่เลือก
@@ -983,7 +994,7 @@
                         <input type="text" id="barcode-input" autocomplete="off" placeholder="สแกนหรือพิมพ์ KANBAN / PART NO / ORDER NO..." 
                                class="w-full pl-16 pr-12 py-5 bg-transparent text-lg font-black outline-none placeholder:text-slate-300 placeholder:text-sm uppercase tracking-tight">
                     </div>
-                </div>
+                </div>  
             </div>
             
             <div class="space-y-4">
@@ -1797,7 +1808,10 @@
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     plugins: { 
-                        legend: { display: false },
+                        legend: { display: true, position: 'top', labels: { 
+                            font: { size: 14, weight: 'bold' },
+                            padding: 25
+                        } },
                         datalabels: {
                             anchor: 'end',
                             align: 'top',
