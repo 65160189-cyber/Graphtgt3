@@ -1336,7 +1336,7 @@
                             <!-- Shipping type will be inserted here by JavaScript -->
                         </div>
                         <div class="flex flex-col items-center">
-                            <div id="qrcode" class="p-1 border-2 border-slate-100 rounded-lg"></div>
+                            <div id="qrcode" class="p-2 border-2 border-slate-100 rounded-lg"></div>
                             <p class="text-[7px] font-black uppercase text-slate-300 mt-1">Verify Authenticity</p>
                         </div>
                     </div>
@@ -2515,7 +2515,20 @@
                 <tr><td class="py-3"><div class="font-black text-[12px] uppercase">${i.salePart}</div><div class="text-[9px] font-bold text-accent uppercase">KANBAN: ${i.kanbanId || '-'}</div></td><td class="py-3 font-bold text-[10px] text-slate-400 uppercase">${i.orderNo}</td><td class="py-3 text-right font-black text-sm">${i.qty}</td></tr>
             `).join('');
             document.getElementById('inv-total-qty').innerText = items.reduce((sum, i) => sum + i.qty, 0);
-            const qr = document.getElementById("qrcode"); qr.innerHTML = ""; new QRCode(qr, { text: `TGT3-VERIFY-${h.id}`, width: 64, height: 64 });
+            
+            // สร้างข้อมูลสำหรับ QR Code
+            const qrData = items.map(i => 
+                `TMTB|TMB|${i.orderNo}|${i.salePart}|${i.kanbanId || '-'}|${i.qty}|*|${dt.toLocaleDateString('th-TH', { day: 'numeric', month: 'numeric', year: 'numeric' }).replace(/\//g, '/')}|99||1|5`
+            ).join('\n');
+            
+            const qr = document.getElementById("qrcode"); 
+            qr.innerHTML = ""; 
+            new QRCode(qr, { 
+                text: qrData, 
+                width: 128, 
+                height: 128,
+                correctLevel: QRCode.CorrectLevel.H
+            });
             document.getElementById('invoice-modal').classList.remove('hidden');
         }
 
@@ -2656,7 +2669,23 @@
             if (e.key === 'Enter') {
                 const qrValue = this.value.trim().toUpperCase();
                 if (qrValue) {
-                    scanAndSelectOrder(qrValue);
+                    // ตรวจสอบว่าเป็น QR Code รูปแบบใหม่หรือไม่
+                    if (qrValue.includes('|')) {
+                        const parts = qrValue.split('|');
+                        if (parts.length >= 5) {
+                            // รูปแบบ: TMTB|TMB|T8917601|53100-0A010|S07Q|1|*|29/01/2026|99||1|5
+                            // จับ KanbanID จากตำแหน่งที่ 4 (index 3)
+                            const kanbanId = parts[4];
+                            if (kanbanId && kanbanId !== '-') {
+                                // ใส่ KanbanID ในช่องค้นหา
+                                this.value = kanbanId;
+                                updateDispatchList();
+                                return;
+                            }
+                        }
+                    }
+                    
+                    handleBarcodeScan(qrValue);
                 }
             }
         });
