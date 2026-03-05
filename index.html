@@ -1246,7 +1246,7 @@
             </div>
             <div class="flex items-center gap-2">
                 <button onclick="clearSelection()" class="px-4 py-2 text-[10px] font-black uppercase text-rose-500 hover:bg-rose-500/10 rounded-full transition-all">ยกเลิก</button>
-                <button onclick="openMultiDispatchModal()" class="bg-primary hover:bg-blue-600 text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all shadow-lg active:scale-95">Confirm</button>
+                <button onclick="openShippingTypeModal()" class="bg-primary hover:bg-blue-600 text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest transition-all shadow-lg active:scale-95">Confirm</button>
             </div>
         </div>
     </div>
@@ -1257,6 +1257,20 @@
             <div class="text-center">
                 <h3 class="text-2xl font-black uppercase tracking-tight">Confirm <span class="text-primary">Dispatch</span></h3>
                 <p class="text-[10px] text-slate-400 font-bold uppercase mt-1">ตรวจสอบรายการและระบุจำนวนที่ส่ง</p>
+                
+                <!-- Shipping Type Display -->
+                <div id="confirm-shipping-type-display" class="mt-4 mb-4 hidden">
+                    <p class="text-[10px] font-black text-slate-400 uppercase mb-2">ประเภทการส่ง: <span id="confirm-shipping-type-text" class="text-primary font-black"></span></p>
+                    
+                    <!-- Pallet QR Section -->
+                    <div id="confirm-pallet-qr-section" class="hidden">
+                        <p class="text-[9px] font-black text-amber-600 uppercase mb-2">รหัส Pallet: <span id="current-pallet-qr" class="text-amber-500 font-black"></span></p>
+                        <div class="relative">
+                            <input type="text" id="confirm-pallet-qr-input" placeholder="สแกนหรือแก้ไขรหัส Pallet..." class="w-full bg-amber-50 dark:bg-amber-500/10 border-2 border-amber-200 dark:border-amber-700 px-4 py-3 rounded-2xl outline-none font-black text-sm dark:text-white placeholder-amber-400 dark:placeholder-amber-600 focus:border-amber-400 transition-all">
+                            <i data-lucide="package" class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-amber-400 pointer-events-none"></i>
+                        </div>
+                    </div>
+                </div>
             </div>
             <div class="flex-1 overflow-y-auto space-y-3 px-1" id="multi-dispatch-list"></div>
             <div class="space-y-4 pt-4 border-t dark:border-slate-800">
@@ -1317,9 +1331,14 @@
                              <p id="inv-customer" class="text-sm font-bold uppercase"></p>
                         </div>
                     </div>
-                    <div class="flex flex-col items-center">
-                        <div id="qrcode" class="p-1 border-2 border-slate-100 rounded-lg"></div>
-                        <p class="text-[7px] font-black uppercase text-slate-300 mt-1">Verify Authenticity</p>
+                    <div class="flex flex-col items-center gap-4">
+                        <div id="inv-shipping-type" class="flex flex-col items-center">
+                            <!-- Shipping type will be inserted here by JavaScript -->
+                        </div>
+                        <div class="flex flex-col items-center">
+                            <div id="qrcode" class="p-1 border-2 border-slate-100 rounded-lg"></div>
+                            <p class="text-[7px] font-black uppercase text-slate-300 mt-1">Verify Authenticity</p>
+                        </div>
                     </div>
                 </div>
                 <table class="w-full mb-12 border-collapse">
@@ -2184,6 +2203,21 @@
             const itemsToShip = [];
             let totalQty = 0;
             let primaryCustomer = "";
+            
+            // รับค่า QR Code จาก input ที่แสดง
+            const palletQRInput = document.getElementById('confirm-pallet-qr-input');
+            const palletQR = palletQRInput ? palletQRInput.value.trim() : '';
+            
+            // ตรวจสอบ QR Code สำหรับ Pallet
+            if (selectedShippingType === 'pallet') {
+                if (!palletQR) {
+                    showToast('กรุณาใส่รหัส Pallet ก่อนส่งสินค้า');
+                    return;
+                }
+                
+                console.log('🔍 Pallet QR Code:', palletQR);
+            }
+            
             const destination = document.getElementById('multi-select-destination').value;
 
             for(const id of Array.from(selectedOrderIds)) {
@@ -2200,9 +2234,31 @@
             const dispatchDate = document.getElementById('dispatch-date-input').value;
             const dispatchDateTime = new Date(dispatchDate + 'T' + new Date().toTimeString().slice(0, 8)).toISOString();
 
-            const historyId = await db.history.add({ customer: primaryCustomer, timestamp: dispatchDateTime, round: selectedRoundInModal, itemsJson: JSON.stringify(itemsToShip), destination: destination });
-            closeModal('multi-dispatch-modal'); selectedOrderIds.clear(); updateShipmentBar(); updateDispatchList();
-            showToast(`ส่งสินค้าเรียบร้อย ${totalQty} ชิ้น`); viewInvoice(historyId); updateDashboard();
+            const historyId = await db.history.add({ 
+                customer: primaryCustomer, 
+                timestamp: dispatchDateTime, 
+                round: selectedRoundInModal, 
+                itemsJson: JSON.stringify(itemsToShip), 
+                destination: destination,
+                shippingType: selectedShippingType,
+                palletQR: selectedShippingType === 'pallet' ? palletQR : null
+            });
+            
+            // ล้างค่า QR Code หลังจากส่งเรียบร้อย
+            if (selectedShippingType === 'pallet') {
+                scannedPalletId = '';
+            }
+            
+            closeModal('multi-dispatch-modal'); 
+            selectedOrderIds.clear(); 
+            updateShipmentBar(); 
+            updateDispatchList();
+            
+            const shippingTypeText = selectedShippingType === 'pallet' ? '📦 Pallet' : '🏗️ Rack';
+            showToast(`ส่งสินค้าเรียบร้อย ${totalQty} ชิ้น (${shippingTypeText})`); 
+            
+            viewInvoice(historyId); 
+            updateDashboard();
             
             // Notify other users about this dispatch
             notifyDispatchUpdate(itemsToShip, 'completed');
@@ -2426,6 +2482,35 @@
             document.getElementById('inv-id').innerText = `BILL ID: TGT3-${h.id.toString().padStart(5, '0')}`;
             document.getElementById('inv-destination').innerText = h.destination || 'TGT3';
             document.getElementById('inv-customer').innerText = h.customer;
+            
+            // แสดงประเภทการส่งถ้ามี
+            const shippingTypeDiv = document.getElementById('inv-shipping-type');
+            if (shippingTypeDiv) {
+                if (h.shippingType) {
+                    shippingTypeDiv.innerHTML = `
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="text-[9px] font-black uppercase text-slate-400">ประเภทการส่ง:</span>
+                            <div class="flex items-center gap-2 px-3 py-1 rounded-full text-xs font-black ${h.shippingType === 'pallet' ? 'bg-amber-100 dark:bg-amber-500/20 text-amber-600 dark:text-amber-400' : 'bg-green-100 dark:bg-green-500/20 text-green-600 dark:text-green-400'}">
+                                <i data-lucide="${h.shippingType === 'pallet' ? 'package' : 'layers'}" class="w-3 h-3"></i>
+                                <span>${h.shippingType === 'pallet' ? 'Pallet' : 'Rack'}</span>
+                            </div>
+                        </div>
+                    `;
+                    
+                    // แสดงรหัส Pallet ถ้ามี
+                    if (h.shippingType === 'pallet' && h.palletQR) {
+                        shippingTypeDiv.innerHTML += `
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-[9px] font-black uppercase text-slate-400">รหัส Pallet:</span>
+                                <span class="text-xs font-black text-amber-600">${h.palletQR}</span>
+                            </div>
+                        `;
+                    }
+                } else {
+                    shippingTypeDiv.innerHTML = '';
+                }
+            }
+            
             document.getElementById('inv-items-body').innerHTML = items.map(i => `
                 <tr><td class="py-3"><div class="font-black text-[12px] uppercase">${i.salePart}</div><div class="text-[9px] font-bold text-accent uppercase">KANBAN: ${i.kanbanId || '-'}</div></td><td class="py-3 font-bold text-[10px] text-slate-400 uppercase">${i.orderNo}</td><td class="py-3 text-right font-black text-sm">${i.qty}</td></tr>
             `).join('');
@@ -2584,6 +2669,208 @@
         window.onload = () => {
             // Login check is handled by checkLoginStatus function
         };
+
+        // Shipping Type Selection Functions
+        let selectedShippingType = '';
+        let scannedPalletId = '';
+
+        function openShippingTypeModal() {
+            document.getElementById('shipping-type-modal').classList.remove('hidden');
+            // Reset form
+            document.getElementById('pallet-qr-section').classList.add('hidden');
+            document.getElementById('pallet-qr-input-modal').value = '';
+            document.getElementById('pallet-info-modal').classList.add('hidden');
+            document.getElementById('confirm-shipping-btn').disabled = true;
+            
+            // Clear radio selection
+            const radios = document.getElementsByName('shipping-type');
+            radios.forEach(radio => radio.checked = false);
+            
+            setTimeout(() => {
+                lucide.createIcons();
+            }, 200);
+        }
+
+        function handleShippingTypeChange(type) {
+            selectedShippingType = type;
+            const qrSection = document.getElementById('pallet-qr-section');
+            const confirmBtn = document.getElementById('confirm-shipping-btn');
+            
+            if (type === 'pallet') {
+                qrSection.classList.remove('hidden');
+                confirmBtn.disabled = true; // Require QR scan
+                setTimeout(() => {
+                    document.getElementById('pallet-qr-input-modal').focus();
+                    lucide.createIcons();
+                }, 200);
+            } else if (type === 'rack') {
+                qrSection.classList.add('hidden');
+                confirmBtn.disabled = false; // Ready to confirm
+            }
+        }
+
+        function validatePalletQRModal(qrCode) {
+            setTimeout(() => {
+                if (qrCode && qrCode.length >= 3) {
+                    document.getElementById('pallet-id-display-modal').innerText = qrCode;
+                    document.getElementById('pallet-info-modal').classList.remove('hidden');
+                    document.getElementById('confirm-shipping-btn').disabled = false;
+                    scannedPalletId = qrCode;
+                } else {
+                    document.getElementById('pallet-info-modal').classList.add('hidden');
+                    document.getElementById('confirm-shipping-btn').disabled = true;
+                    scannedPalletId = '';
+                }
+            }, 300);
+        }
+
+        function confirmShippingType() {
+            if (selectedShippingType === 'pallet') {
+                const palletId = document.getElementById('pallet-qr-input-modal').value.trim();
+                if (palletId.length < 3) {
+                    showToast('กรุณาสแกน QR Code พาเลทให้ถูกต้อง');
+                    return;
+                }
+                scannedPalletId = palletId;
+            }
+            
+            closeModal('shipping-type-modal');
+            proceedWithDispatch();
+        }
+
+        function proceedWithDispatch() {
+            // ตรวจสอบว่ามีการเลือกรายการหรือไม่
+            if (selectedOrderIds.size === 0) {
+                showToast('กรุณาเลือกรายการสินค้าอย่างน้อย 1 รายการ');
+                return;
+            }
+            
+            // แสดงประเภทการส่งใน Confirm Modal
+            const displayDiv = document.getElementById('confirm-shipping-type-display');
+            const typeText = document.getElementById('confirm-shipping-type-text');
+            const palletQRSection = document.getElementById('confirm-pallet-qr-section');
+            const currentPalletQR = document.getElementById('current-pallet-qr');
+            const palletQRInput = document.getElementById('confirm-pallet-qr-input');
+            
+            if (selectedShippingType) {
+                displayDiv.classList.remove('hidden');
+                typeText.textContent = selectedShippingType === 'pallet' ? 'Pallet' : 'Rack';
+                
+                if (selectedShippingType === 'pallet') {
+                    palletQRSection.classList.remove('hidden');
+                    
+                    // แสดง QR Code ที่เคยใส่ไปแล้ว
+                    if (scannedPalletId) {
+                        currentPalletQR.textContent = scannedPalletId;
+                        palletQRInput.value = scannedPalletId;
+                    } else {
+                        currentPalletQR.textContent = '-';
+                        palletQRInput.value = '';
+                    }
+                } else {
+                    palletQRSection.classList.add('hidden');
+                }
+            } else {
+                displayDiv.classList.add('hidden');
+                palletQRSection.classList.add('hidden');
+            }
+            
+            // เปิด Confirm Dispatch Modal
+            openMultiDispatchModal();
+        }
+
+        // Add QR input handler
+        document.addEventListener('DOMContentLoaded', function() {
+            const palletQRInput = document.getElementById('pallet-qr-input-modal');
+            if (palletQRInput) {
+                palletQRInput.addEventListener('input', function(e) {
+                    validatePalletQRModal(e.target.value);
+                });
+            }
+        });
     </script>
+
+    <!-- SHIPPING TYPE SELECTION MODAL -->
+    <div id="shipping-type-modal" class="fixed inset-0 z-[300] hidden bg-slate-950/60 backdrop-blur-[2px] flex items-center justify-center p-6">
+        <div class="bg-white dark:bg-slate-900 w-full max-w-md rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-primary/20 animate-in zoom-in-95 duration-200">
+            <div class="p-8 border-b border-slate-100 dark:border-slate-800">
+                <div class="flex items-center gap-3 mb-2">
+                    <div class="w-12 h-12 bg-primary/10 text-primary rounded-full flex items-center justify-center">
+                        <i data-lucide="package" class="w-6 h-6"></i>
+                    </div>
+                    <div>
+                        <h3 class="text-2xl font-black tracking-tight">เลือกประเภทการส่ง</h3>
+                        <p class="text-slate-400 text-sm mt-1">เลือกว่าจะส่งด้วย Pallet หรือ Rack</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="p-8 space-y-6">
+                <!-- Radio Button Options -->
+                <div class="space-y-4">
+                    <!-- Pallet Option -->
+                    <label class="shipping-option group relative p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary transition-all cursor-pointer">
+                        <div class="flex items-center gap-4">
+                            <input type="radio" name="shipping-type" value="pallet" class="w-5 h-5 text-primary focus:ring-primary" onchange="handleShippingTypeChange('pallet')">
+                            <div class="flex items-center gap-3 flex-1">
+                                <div class="w-12 h-12 bg-amber-100 dark:bg-amber-500/20 text-amber-500 rounded-full flex items-center justify-center">
+                                    <i data-lucide="package" class="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-black text-lg">Pallet</h4>
+                                    <p class="text-[10px] text-slate-400">ต้องสแกน QR Code พาเลท</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                    
+                    <!-- Rack Option -->
+                    <label class="shipping-option group relative p-4 rounded-2xl border-2 border-slate-200 dark:border-slate-700 hover:border-primary transition-all cursor-pointer">
+                        <div class="flex items-center gap-4">
+                            <input type="radio" name="shipping-type" value="rack" class="w-5 h-5 text-primary focus:ring-primary" onchange="handleShippingTypeChange('rack')">
+                            <div class="flex items-center gap-3 flex-1">
+                                <div class="w-12 h-12 bg-green-100 dark:bg-green-500/20 text-green-500 rounded-full flex items-center justify-center">
+                                    <i data-lucide="layers" class="w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <h4 class="font-black text-lg">Rack</h4>
+                                    <p class="text-[10px] text-slate-400">ไม่ต้องสแกน QR Code</p>
+                                </div>
+                            </div>
+                        </div>
+                    </label>
+                </div>
+                
+                <!-- QR Scanner Section (Hidden by default) -->
+                <div id="pallet-qr-section" class="hidden space-y-4 animate-in fade-in duration-200">
+                    <div class="bg-amber-50 dark:bg-amber-500/10 border border-amber-200 dark:border-amber-800/30 rounded-2xl p-4">
+                        <div class="flex items-center gap-2 mb-3">
+                            <i data-lucide="qr-code" class="w-5 h-5 text-amber-500"></i>
+                            <h5 class="font-black text-amber-500">สแกน QR Code พาเลท</h5>
+                        </div>
+                        <div class="relative">
+                            <input type="text" id="pallet-qr-input-modal" placeholder="กรอกหรือสแกน QR Code พาเลท..." 
+                                   class="w-full bg-white dark:bg-slate-800 border border-amber-200 dark:border-amber-800/30 px-4 py-3 rounded-xl pr-12 outline-none focus:ring-2 focus:ring-amber-500/20 font-black text-sm">
+                            <i data-lucide="camera" class="w-5 h-5 absolute right-3 top-1/2 -translate-y-1/2 text-amber-500"></i>
+                        </div>
+                        <div id="pallet-info-modal" class="hidden mt-3 p-3 bg-amber-100 dark:bg-amber-500/20 rounded-xl">
+                            <p class="text-xs font-black text-amber-600 dark:text-amber-400">Pallet ID: <span id="pallet-id-display-modal">-</span></p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Action Buttons -->
+                <div class="flex gap-3 pt-4">
+                    <button id="confirm-shipping-btn" onclick="confirmShippingType()" disabled class="flex-1 px-6 py-3 bg-primary text-white rounded-2xl font-black text-sm uppercase hover:bg-primary/90 transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                        ยืนยัน
+                    </button>
+                    <button onclick="closeModal('shipping-type-modal')" class="flex-1 px-6 py-3 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded-2xl font-black text-sm uppercase">
+                        ยกเลิก
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 </body>
 </html>
