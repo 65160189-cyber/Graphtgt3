@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="th" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -1655,6 +1655,8 @@
             document.documentElement.classList.toggle('dark');
             const isDark = document.documentElement.classList.contains('dark');
             localStorage.setItem('theme', isDark ? 'dark' : 'light');
+            showToast(isDark ? '🌙 Dark Mode' : '☀️ Light Mode');
+            
             // Update charts colors if they exist
             if (myCharts.monthly) {
                 myCharts.monthly.options.scales.x.grid.color = isDark ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)';
@@ -2145,6 +2147,70 @@
             }
         } 
 
+        function parseDispatchQRCode(rawValue) {
+            const raw = String(rawValue || "").trim();
+            if (!raw.includes('|')) return null;
+
+            const parts = raw.split('|').map(p => String(p || "").trim());
+            if (parts.length < 8) return null;
+
+            // Format example:
+            // TMTB|TMB|T8917601|53100-0A010|S07Q|1|*|29/01/2026|99||1|5
+            const salePart = (parts[3] || "").toUpperCase();
+            const kanbanId = (parts[4] || "").toUpperCase();
+            const deliveryDateRaw = parts[7] || "";
+
+            let deliveryDate = "";
+            const m = String(deliveryDateRaw).match(/^(\d{1,2})[\/-](\d{1,2})[\/-](\d{4})$/);
+            if (m) {
+                const dd = m[1].padStart(2, '0');
+                const mm = m[2].padStart(2, '0');
+                const yyyy = m[3];
+                deliveryDate = `${yyyy}-${mm}-${dd}`; // match DB format (YYYY-MM-DD)
+            }
+
+            return { salePart, kanbanId, deliveryDate, deliveryDateRaw };
+        }
+
+        async function scanAndSelectOrderByFields({ salePart, kanbanId, deliveryDate } = {}, { clearInput = true } = {}) {
+            try {
+                const orders = await db.orders.where('qty').above(0).toArray();
+                const upPart = (salePart || "").toUpperCase();
+                const upKanban = (kanbanId || "").toUpperCase();
+                const dateStr = (deliveryDate || "").trim();
+
+                if (!upPart && !upKanban && !dateStr) return false;
+
+                // Prefer strict match: part + kanban + date (when provided)
+                let matchedOrder = orders.find(o => {
+                    const oPart = (o.salePart || "").toUpperCase();
+                    const oKanban = (o.kanbanId || "").toUpperCase();
+                    const oDate = String(o.deliveryDate || "").trim();
+                    if (upPart && oPart !== upPart) return false;
+                    if (upKanban && oKanban !== upKanban) return false;
+                    if (dateStr && oDate !== dateStr) return false;
+                    return true;
+                });
+
+                // Fallback: kanban only, then part only (keeps behavior usable)
+                if (!matchedOrder && upKanban) matchedOrder = orders.find(o => (o.kanbanId || "").toUpperCase() === upKanban);
+                if (!matchedOrder && upPart) matchedOrder = orders.find(o => (o.salePart || "").toUpperCase() === upPart);
+
+                if (!matchedOrder) return false;
+
+                selectedOrderIds.add(matchedOrder.id);
+                updateShipmentBar();
+                updateDispatchList();
+                if (clearInput) document.getElementById('barcode-input').value = '';
+                setTimeout(() => document.getElementById('barcode-input').focus(), 100);
+                return true;
+            } catch (error) {
+                console.error('Error scanning QR Code fields:', error);
+                showToast('❌ เกิดข้อผิดพลาดในการสแกน');
+                return false;
+            }
+        }
+
         function clearSelection() {
             selectedOrderIds.clear(); updateShipmentBar(); updateDispatchList();
             showToast("ยกเลิกการเลือกทั้งหมดแล้ว");
@@ -2634,7 +2700,11 @@
         function initializeApp() {
             console.log('🚀 initializeApp called'); // Debug log
             
-            if(localStorage.getItem('theme') === 'dark') document.documentElement.classList.add('dark');
+            // Dark mode is default, but still respect saved preference.
+            // Default HTML has `class="dark"`, so only remove it when user saved "light".
+            const savedTheme = localStorage.getItem('theme');
+            if (savedTheme === 'light') document.documentElement.classList.remove('dark');
+            else document.documentElement.classList.add('dark');
             document.getElementById('current-date-display').innerText = new Date().toLocaleDateString('en-GB', { dateStyle: 'full' });
             initDashboardCharts();
             updateChartsData();
@@ -2669,23 +2739,24 @@
             if (e.key === 'Enter') {
                 const qrValue = this.value.trim().toUpperCase();
                 if (qrValue) {
-                    // ตรวจสอบว่าเป็น QR Code รูปแบบใหม่หรือไม่
-                    if (qrValue.includes('|')) {
-                        const parts = qrValue.split('|');
-                        if (parts.length >= 5) {
-                            // รูปแบบ: TMTB|TMB|T8917601|53100-0A010|S07Q|1|*|29/01/2026|99||1|5
-                            // จับ KanbanID จากตำแหน่งที่ 4 (index 3)
-                            const kanbanId = parts[4];
-                            if (kanbanId && kanbanId !== '-') {
-                                // ใส่ KanbanID ในช่องค้นหา
-                                this.value = kanbanId;
-                                updateDispatchList();
-                                return;
-                            }
+                    const parsed = parseDispatchQRCode(qrValue);
+                    if (parsed) {
+                        // Capture positions:
+                        // - Sale Part: parts[3]
+                        // - KanbanID: parts[4]
+                        // - Delivery Date: parts[7]
+                        if (parsed.salePart) {
+                            this.value = parsed.salePart; // show Sale Part in search/scan box
+                            updateDispatchList();
                         }
+
+                        // Auto-select the matched order using all captured fields
+                        scanAndSelectOrderByFields(parsed, { clearInput: false });
+                        return;
                     }
-                    
-                    handleBarcodeScan(qrValue);
+
+                    // Non-delimited scan: keep existing behavior
+                    scanAndSelectOrder(qrValue);
                 }
             }
         });
@@ -2713,7 +2784,7 @@
             
             // Clear radio selection
             const radios = document.getElementsByName('shipping-type');
-            radios.forEach(radio => radio.checked = false);
+            Array.from(radios).forEach(radio => radio.checked = false);
             
             setTimeout(() => {
                 lucide.createIcons();
