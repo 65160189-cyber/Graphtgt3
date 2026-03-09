@@ -1456,12 +1456,20 @@
                     // Show connection status in UI
                     showToast('🔗 เชื่อมต่อ Multi-User Server สำเร็จ');
                     
-                    // Add connection indicator
+                    // Add connection indicator above system time
                     const indicator = document.createElement('div');
                     indicator.id = 'connection-indicator';
-                    indicator.className = 'fixed top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-black z-50';
+                    indicator.className = 'px-3 py-1 bg-green-500 text-white rounded-full text-xs font-black text-center mb-2';
                     indicator.textContent = '🟢 Multi-User Connected';
-                    document.body.appendChild(indicator);
+                    
+                    // Find system time container and insert before it
+                    const systemTimeContainer = document.querySelector('#sidebar-clock').parentElement;
+                    if (systemTimeContainer) {
+                        systemTimeContainer.parentElement.insertBefore(indicator, systemTimeContainer);
+                    } else {
+                        // Fallback to body if system time not found
+                        document.body.appendChild(indicator);
+                    }
                     
                     // Send heartbeat every 30 seconds
                     setInterval(() => {
