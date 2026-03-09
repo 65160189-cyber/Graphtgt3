@@ -1276,7 +1276,7 @@
             <div class="flex-1 overflow-y-auto space-y-3 px-1" id="multi-dispatch-list"></div>
             <div class="space-y-4 pt-4 border-t dark:border-slate-800">
                 <div class="relative">
-                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-1 block">วันที่ส่งสินค้า (ย้อนหลัง 7 วัน ถึง 7 วันข้างหน้า)</label>
+                    <label class="text-[9px] font-black text-slate-400 uppercase tracking-widest ml-2 mb-1 block">วันที่ส่งสินค้า (เลือกย้อนหลังได้)</label>
                     <div class="relative">
                         <input type="date" id="dispatch-date-input" class="w-full bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 px-4 py-4 rounded-2xl appearance-none font-black text-xs outline-none focus:ring-2 focus:ring-primary/20 transition-all" />
                         <i data-lucide="calendar" class="w-4 h-4 absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none"></i>
@@ -2250,13 +2250,13 @@
             `).join('');
             setSelectedRound('เช้า');
             
-            // ตั้งค่าวันที่ส่งสินค้า (ย้อนหลัง 7 วัน ถึง 7 วันข้างหน้า)
+            // ตั้งค่าวันที่ส่งสินค้า (เลือกย้อนหลังได้ ไม่จำกัดแค่ 7 วัน)
             const dateInput = document.getElementById('dispatch-date-input');
             const today = new Date();
             const minDate = new Date(today);
             const maxDate = new Date(today);
-            minDate.setDate(today.getDate() - 7);  // ย้อนหลัง 7 วัน
-            maxDate.setDate(today.getDate() + 7);  // ข้างหน้า 7 วัน
+            minDate.setFullYear(today.getFullYear() - 2);  // ย้อนหลัง 2 ปี
+            maxDate.setFullYear(today.getFullYear() + 1);  // ข้างหน้า 1 ปี
             
             dateInput.min = minDate.toISOString().split('T')[0];
             dateInput.max = maxDate.toISOString().split('T')[0];
