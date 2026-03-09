@@ -2155,10 +2155,14 @@
             const parts = raw.split('|').map(p => String(p || "").trim());
             if (parts.length < 8) return null;
 
-            // Format example:
-            // TMTB|TMB|T8917601|53100-0A010|S07Q|1|*|29/01/2026|99||1|5
+            // Format: TMTB|TMB|T8917601|53100-0A010|S07Q|1|*|29/01/2026|99||1|5
+            // [0]=Customer, [1]=Customer ShortNo, [2]=Order No1, [3]=Sale Part, [4]=KanbanID, [5]=Qty, [6]=BoxType, [7]=Delivery Date
+            const customer = (parts[0] || "").toUpperCase();
+            const customerShortNo = (parts[1] || "").toUpperCase();
+            const orderNo = (parts[2] || "").toUpperCase();
             const salePart = (parts[3] || "").toUpperCase();
             const kanbanId = (parts[4] || "").toUpperCase();
+            const qty = parseInt(parts[5], 10) || 0;
             const deliveryDateRaw = parts[7] || "";
 
             let deliveryDate = "";
@@ -2170,30 +2174,39 @@
                 deliveryDate = `${yyyy}-${mm}-${dd}`; // match DB format (YYYY-MM-DD)
             }
 
-            return { salePart, kanbanId, deliveryDate, deliveryDateRaw };
+            return { customer, customerShortNo, orderNo, salePart, kanbanId, qty, deliveryDate, deliveryDateRaw };
         }
 
-        async function scanAndSelectOrderByFields({ salePart, kanbanId, deliveryDate } = {}, { clearInput = true } = {}) {
+        async function scanAndSelectOrderByFields(parsed = {}, { clearInput = true } = {}) {
             try {
-                const orders = await db.orders.where('qty').above(0).toArray();
+                const { customer, customerShortNo, orderNo, salePart, kanbanId, qty, deliveryDate } = parsed;
+                const upCust = (customer || "").toUpperCase();
+                const upOrderNo = (orderNo || "").toUpperCase();
                 const upPart = (salePart || "").toUpperCase();
                 const upKanban = (kanbanId || "").toUpperCase();
                 const dateStr = (deliveryDate || "").trim();
 
-                if (!upPart && !upKanban && !dateStr) return false;
+                if (!upCust && !upOrderNo && !upPart && !upKanban && !dateStr) return false;
 
-                // Prefer strict match: part + kanban + date (when provided)
+                const orders = await db.orders.where('qty').above(0).toArray();
+
+                // จับให้ตรงกัน: Customer, Order No1, Sale Part, KanbanID, Delivery Date (ทุกฟิลด์ที่ได้จาก QR ต้องตรง)
                 let matchedOrder = orders.find(o => {
+                    const oCust = (o.customer || "").toUpperCase();
+                    const oOrderNo = (o.orderNo || "").toUpperCase();
                     const oPart = (o.salePart || "").toUpperCase();
                     const oKanban = (o.kanbanId || "").toUpperCase();
                     const oDate = String(o.deliveryDate || "").trim();
+                    if (upCust && oCust !== upCust) return false;
+                    if (upOrderNo && oOrderNo !== upOrderNo) return false;
                     if (upPart && oPart !== upPart) return false;
                     if (upKanban && oKanban !== upKanban) return false;
                     if (dateStr && oDate !== dateStr) return false;
                     return true;
                 });
 
-                // Fallback: kanban only, then part only (keeps behavior usable)
+                // Fallback: ถ้าไม่เจอแบบตรงทุกฟิลด์ ลองจับแค่ Kanban+Part+Date แล้ว Part+Date
+                if (!matchedOrder && upKanban && upPart) matchedOrder = orders.find(o => (o.kanbanId || "").toUpperCase() === upKanban && (o.salePart || "").toUpperCase() === upPart && (!dateStr || String(o.deliveryDate || "").trim() === dateStr));
                 if (!matchedOrder && upKanban) matchedOrder = orders.find(o => (o.kanbanId || "").toUpperCase() === upKanban);
                 if (!matchedOrder && upPart) matchedOrder = orders.find(o => (o.salePart || "").toUpperCase() === upPart);
 
@@ -2742,10 +2755,7 @@
                 if (qrValue) {
                     const parsed = parseDispatchQRCode(qrValue);
                     if (parsed) {
-                        // Capture positions:
-                        // - Sale Part: parts[3]
-                        // - KanbanID: parts[4]
-                        // - Delivery Date: parts[7]
+                        // ข้อมูลที่จับ: Customer[0], Customer ShortNo[1], Order No1[2], Sale Part[3], KanbanID[4], Qty[5], Delivery Date[7]
                         if (parsed.salePart) {
                             this.value = parsed.salePart; // show Sale Part in search/scan box
                             updateDispatchList();
