@@ -1413,14 +1413,91 @@
         const maxReconnectAttempts = 5;
 
         function initWebSocket() {
-            // WebSocket connection disabled - using local mode only
-            console.log('📱 Running in local mode - WebSocket connection disabled');
-            showToast('📱 Local Mode - Multi-User features disabled');
+            try {
+                // Check if server is ready by making a simple HTTP request first
+                fetch('https://graphtgt3.onrender.com/api/status')
+                    .then(() => {
+                        // Server is ready, connect WebSocket
+                        console.log('🌐 Server is ready, connecting WebSocket...');
+                        connectWebSocket();
+                    })
+                    .catch(() => {
+                        // Server not ready, try anyway
+                        console.log('⚠️ Server status check failed, trying WebSocket anyway...');
+                        connectWebSocket();
+                    });
+            } catch (error) {
+                console.error('Failed to initialize WebSocket:', error);
+                showToast('Failed to connect to multi-user server');
+            }
         }
         
         function connectWebSocket() {
-            // WebSocket connection disabled - using local mode only
-            console.log('📱 Running in local mode - WebSocket connection disabled');
+            try {
+                // Connect to WebSocket server
+                const wsUrl = 'wss://graphtgt3.onrender.com';
+                console.log('🔗 Connecting to:', wsUrl);
+                ws = new WebSocket(wsUrl);
+                
+                // Set connection timeout
+                const connectionTimeout = setTimeout(() => {
+                    if (ws.readyState === WebSocket.CONNECTING) {
+                        console.log('⏰ Connection timeout, closing...');
+                        ws.close();
+                        showToast('❌ หมดเวลาเชื่อมต่อ ลองใหม่');
+                    }
+                }, 5000);
+                
+                ws.onopen = function() {
+                    clearTimeout(connectionTimeout);
+                    console.log('🔗 Connected to TGT3 Multi-User Server');
+                    reconnectAttempts = 0;
+                    
+                    // Show connection status in UI
+                    showToast('🔗 เชื่อมต่อ Multi-User Server สำเร็จ');
+                    
+                    // Send heartbeat every 30 seconds
+                    setInterval(() => {
+                        if (ws && ws.readyState === WebSocket.OPEN) {
+                            ws.send(JSON.stringify({ type: 'heartbeat' }));
+                        }
+                    }, 30000);
+                };
+                
+                ws.onmessage = function(event) {
+                    try {
+                        const data = JSON.parse(event.data);
+                        console.log('📨 WebSocket message received:', data);
+                        handleWebSocketMessage(data);
+                    } catch (error) {
+                        console.error('Error parsing WebSocket message:', error);
+                    }
+                };
+                
+                ws.onclose = function() {
+                    console.log('❌ Disconnected from server');
+                    
+                    // Attempt to reconnect
+                    if (reconnectAttempts < maxReconnectAttempts) {
+                        reconnectAttempts++;
+                        console.log(`🔄 Reconnecting... Attempt ${reconnectAttempts}/${maxReconnectAttempts}`);
+                        showToast(`🔄 พยายามเชื่อมต่อใหม่... ${reconnectAttempts}/${maxReconnectAttempts}`);
+                        setTimeout(connectWebSocket, 3000);
+                    } else {
+                        console.log('❌ Max reconnection attempts reached');
+                        showToast('❌ ไม่สามารถเชื่อมต่อได้ กรุณารีเฟรชหน้า');
+                    }
+                };
+                
+                ws.onerror = function(error) {
+                    console.error('WebSocket error:', error);
+                    showToast('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
+                };
+                
+            } catch (error) {
+                console.error('Failed to initialize WebSocket:', error);
+                showToast('Failed to connect to multi-user server');
+            }
         }
                 function handleWebSocketMessage(data) {
             console.log('📨 Received WebSocket message:', data);
