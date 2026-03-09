@@ -1600,42 +1600,6 @@
                                         updateDashboard();
                                         console.log('✅ updateDashboard() completed');
                                         
-                                        // Force update UI elements directly
-                                        setTimeout(() => {
-                                            console.log('🔄 Force updating UI elements directly...');
-                                            
-                                            // Get current database state
-                                            db.orders.toArray().then(orders => {
-                                                const totalShipped = orders.reduce((sum, order) => sum + (order.shippedQty || 0), 0);
-                                                console.log('📊 Current total shipped from DB:', totalShipped);
-                                                
-                                                // Force update UI elements
-                                                const shippedElement = document.getElementById('stat-today-shipped');
-                                                const onplanElement = document.getElementById('stat-today-remaining');
-                                                
-                                                if (shippedElement) {
-                                                    console.log('🔄 Updating shipped element:', shippedElement.textContent, '->', totalShipped);
-                                                    shippedElement.textContent = totalShipped;
-                                                    shippedElement.style.color = 'red';
-                                                    setTimeout(() => {
-                                                        shippedElement.style.color = '';
-                                                    }, 1000);
-                                                }
-                                                
-                                                if (onplanElement) {
-                                                    const onplanValue = Math.max(0, 500 - totalShipped);
-                                                    console.log('🔄 Updating onplan element:', onplanElement.textContent, '->', onplanValue);
-                                                    onplanElement.textContent = onplanValue;
-                                                    onplanElement.style.color = 'red';
-                                                    setTimeout(() => {
-                                                        onplanElement.style.color = '';
-                                                    }, 1000);
-                                                }
-                                                
-                                                console.log('✅ Force UI update completed');
-                                            });
-                                        }, 100);
-                                        
                                         console.log('🔄 Calling updateDispatchList()...');
                                         updateDispatchList();
                                         console.log('✅ updateDispatchList() completed');
@@ -1685,13 +1649,11 @@
                                                 
                                                 if (uiShipped !== totalShipped) {
                                                     console.log('❌ UI shipped count mismatch! Forcing UI refresh...');
-                                                    // Force update again
-                                                    shippedToday.textContent = totalShipped;
+                                                    updateDashboard();
                                                 }
                                                 if (uiOnplan !== (500 - totalShipped)) {
                                                     console.log('❌ UI onplan count mismatch! Forcing UI refresh...');
-                                                    // Force update again
-                                                    onplan.textContent = 500 - totalShipped;
+                                                    updateDashboard();
                                                 }
                                             });
                                         }, 500);
@@ -1703,15 +1665,16 @@
                                     console.error('❌ Error in database sync:', error);
                                     showToast('❌ Error syncing data from another user');
                                 });
-                            } else {
-                                console.log('❌ No items to update in dispatch message');
-                                // No items to update, just refresh UI
-                                updateDashboard();
-                                updateDispatchList();
-                                updateShipmentBar();
-                            }
+                            });
+                        } else {
+                            console.log('❌ No items to update in dispatch message');
+                            // No items to update, just refresh UI
+                            updateDashboard();
+                            updateDispatchList();
+                            updateShipmentBar();
                         }
-                        break;
+                    }
+                    break;
                     
                 case 'client_count':
                     // Update connected users count
