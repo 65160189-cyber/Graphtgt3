@@ -1598,12 +1598,14 @@
             console.log('📤 Sending dispatch notification:', { items, action });
             console.log('📤 Client ID:', clientId);
             console.log('📤 WebSocket state:', ws ? ws.readyState : 'null');
+            console.log('📤 Items data:', JSON.stringify(items, null, 2));
             
             if (ws && ws.readyState === WebSocket.OPEN && clientId) {
                 sendWebSocketMessage('dispatch', {
                     action: action,
                     items: items
                 });
+                console.log('📤 Message sent successfully');
             } else {
                 console.log('❌ WebSocket not connected or no client ID');
                 showToast('❌ Multi-User connection not available');
