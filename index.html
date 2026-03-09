@@ -1539,108 +1539,132 @@
                         if (data.items && data.items.length > 0) {
                             console.log('📦 Starting database update for', data.items.length, 'items');
                             
-                            const updatePromises = data.items.map(async (item, index) => {
-                                console.log(`📦 Processing item ${index + 1}:`, item);
+                            // Check current database state before update
+                            db.orders.toArray().then(currentOrders => {
+                                const currentShipped = currentOrders.reduce((sum, order) => sum + (order.shippedQty || 0), 0);
+                                console.log('📊 Current database shipped before update:', currentShipped);
                                 
-                                try {
-                                    const order = await db.orders.get(item.orderId);
-                                    console.log(`📦 Found order for ${item.orderId}:`, order);
+                                const updatePromises = data.items.map(async (item, index) => {
+                                    console.log(`📦 Processing item ${index + 1}:`, item);
                                     
-                                    if (order) {
-                                        const newQty = order.qty - item.qty;
-                                        const newShippedQty = (order.shippedQty || 0) + item.qty;
+                                    try {
+                                        const order = await db.orders.get(item.orderId);
+                                        console.log(`📦 Found order for ${item.orderId}:`, order);
                                         
-                                        console.log(`📦 Updating order ${item.orderId}: ${order.qty} -> ${newQty}, shipped: ${order.shippedQty || 0} -> ${newShippedQty}`);
-                                        
-                                        await db.orders.update(item.orderId, {
-                                            qty: newQty,
-                                            shippedQty: newShippedQty
-                                        });
-                                        
-                                        console.log(`✅ Updated order ${item.orderId}: -${item.qty} qty`);
-                                    } else {
-                                        console.log(`❌ Order ${item.orderId} not found in local database`);
+                                        if (order) {
+                                            const currentOrderShipped = order.shippedQty || 0;
+                                            const newShippedQty = currentOrderShipped + item.qty;
+                                            const newQty = order.qty - item.qty;
+                                            
+                                            console.log(`📦 Order ${item.orderId} update details:`);
+                                            console.log(`📦 - Current shipped: ${currentOrderShipped}`);
+                                            console.log(`📦 - Adding: ${item.qty}`);
+                                            console.log(`📦 - New shipped: ${newShippedQty}`);
+                                            console.log(`📦 - New qty: ${newQty}`);
+                                            
+                                            await db.orders.update(item.orderId, {
+                                                qty: newQty,
+                                                shippedQty: newShippedQty
+                                            });
+                                            
+                                            console.log(`✅ Updated order ${item.orderId}: shipped ${currentOrderShipped} -> ${newShippedQty}, qty ${order.qty} -> ${newQty}`);
+                                        } else {
+                                            console.log(`❌ Order ${item.orderId} not found in local database`);
+                                        }
+                                    } catch (error) {
+                                        console.error('❌ Error updating local database:', error);
+                                        console.error('❌ Error details:', error.message);
                                     }
-                                } catch (error) {
-                                    console.error('❌ Error updating local database:', error);
-                                    console.error('❌ Error details:', error.message);
-                                }
-                            });
-                            
-                            // Wait for all database updates to complete
-                            Promise.all(updatePromises).then(() => {
-                                console.log('🔄 Database sync completed, updating UI...');
+                                });
                                 
-                                // Force UI update with debug
-                                try {
-                                    console.log('🔄 Calling updateDashboard()...');
-                                    updateDashboard();
-                                    console.log('✅ updateDashboard() completed');
+                                // Wait for all database updates to complete
+                                Promise.all(updatePromises).then(() => {
+                                    console.log('🔄 Database sync completed, updating UI...');
                                     
-                                    console.log('🔄 Calling updateDispatchList()...');
-                                    updateDispatchList();
-                                    console.log('✅ updateDispatchList() completed');
+                                    // Verify database state after update
+                                    db.orders.toArray().then(updatedOrders => {
+                                        const updatedShipped = updatedOrders.reduce((sum, order) => sum + (order.shippedQty || 0), 0);
+                                        console.log('📊 Database shipped after update:', updatedShipped);
+                                        console.log('📊 Expected shipped after update:', currentShipped + data.items.reduce((sum, item) => sum + item.qty, 0));
+                                        
+                                        if (updatedShipped !== currentShipped + data.items.reduce((sum, item) => sum + item.qty, 0)) {
+                                            console.log('❌ Database update verification failed! Expected:', currentShipped + data.items.reduce((sum, item) => sum + item.qty, 0), 'Got:', updatedShipped);
+                                        } else {
+                                            console.log('✅ Database update verification passed!');
+                                        }
+                                    });
                                     
-                                    console.log('🔄 Calling updateShipmentBar()...');
-                                    updateShipmentBar();
-                                    console.log('✅ updateShipmentBar() completed');
-                                    
-                                    // Force refresh the dispatch list container
-                                    const dispatchContainer = document.getElementById('dispatch-list-container');
-                                    if (dispatchContainer) {
-                                        console.log('🔄 Force refresh dispatch container...');
-                                        dispatchContainer.style.display = 'none';
+                                    // Force UI update with debug
+                                    try {
+                                        console.log('🔄 Calling updateDashboard()...');
+                                        updateDashboard();
+                                        console.log('✅ updateDashboard() completed');
+                                        
+                                        console.log('🔄 Calling updateDispatchList()...');
+                                        updateDispatchList();
+                                        console.log('✅ updateDispatchList() completed');
+                                        
+                                        console.log('🔄 Calling updateShipmentBar()...');
+                                        updateShipmentBar();
+                                        console.log('✅ updateShipmentBar() completed');
+                                        
+                                        // Force refresh the dispatch list container
+                                        const dispatchContainer = document.getElementById('dispatch-list-container');
+                                        if (dispatchContainer) {
+                                            console.log('🔄 Force refresh dispatch container...');
+                                            dispatchContainer.style.display = 'none';
+                                            setTimeout(() => {
+                                                dispatchContainer.style.display = 'block';
+                                            }, 100);
+                                        }
+                                        
+                                        showToast(`${data.items?.length || 0} items dispatched by another user`);
+                                        console.log('✅ UI update completed');
+                                        
+                                        // Log current stats after update
                                         setTimeout(() => {
-                                            dispatchContainer.style.display = 'block';
-                                        }, 100);
-                                    }
-                                    
-                                    showToast(`${data.items?.length || 0} items dispatched by another user`);
-                                    console.log('✅ UI update completed');
-                                    
-                                    // Log current stats after update
-                                    setTimeout(() => {
-                                        const shippedToday = document.getElementById('stat-today-shipped');
-                                        const onplan = document.getElementById('stat-today-remaining');
-                                        console.log('📊 Current stats after update:');
-                                        console.log('📊 Shipped Today:', shippedToday ? shippedToday.textContent : 'N/A');
-                                        console.log('📊 Onplan:', onplan ? onplan.textContent : 'N/A');
+                                            const shippedToday = document.getElementById('stat-today-shipped');
+                                            const onplan = document.getElementById('stat-today-remaining');
+                                            console.log('📊 Current stats after update:');
+                                            console.log('📊 Shipped Today:', shippedToday ? shippedToday.textContent : 'N/A');
+                                            console.log('📊 Onplan:', onplan ? onplan.textContent : 'N/A');
+                                            
+                                            // Check database consistency
+                                            console.log('🔍 Checking database consistency...');
+                                            db.orders.toArray().then(orders => {
+                                                const totalQty = orders.reduce((sum, order) => sum + order.qty, 0);
+                                                const totalShipped = orders.reduce((sum, order) => sum + (order.shippedQty || 0), 0);
+                                                console.log('📊 Database summary:');
+                                                console.log('📊 Total orders:', orders.length);
+                                                console.log('📊 Total qty in database:', totalQty);
+                                                console.log('📊 Total shipped in database:', totalShipped);
+                                                console.log('📊 Expected remaining:', 500 - totalShipped);
+                                                
+                                                // Check if UI matches database
+                                                const uiShipped = shippedToday ? parseInt(shippedToday.textContent) : 0;
+                                                const uiOnplan = onplan ? parseInt(onplan.textContent) : 0;
+                                                console.log('📊 UI vs Database comparison:');
+                                                console.log('📊 UI Shipped:', uiShipped, 'vs DB Shipped:', totalShipped);
+                                                console.log('📊 UI Onplan:', uiOnplan, 'vs DB Expected:', 500 - totalShipped);
+                                                
+                                                if (uiShipped !== totalShipped) {
+                                                    console.log('❌ UI shipped count mismatch! Forcing UI refresh...');
+                                                    updateDashboard();
+                                                }
+                                                if (uiOnplan !== (500 - totalShipped)) {
+                                                    console.log('❌ UI onplan count mismatch! Forcing UI refresh...');
+                                                    updateDashboard();
+                                                }
+                                            });
+                                        }, 500);
                                         
-                                        // Check database consistency
-                                        console.log('🔍 Checking database consistency...');
-                                        db.orders.toArray().then(orders => {
-                                            const totalQty = orders.reduce((sum, order) => sum + order.qty, 0);
-                                            const totalShipped = orders.reduce((sum, order) => sum + (order.shippedQty || 0), 0);
-                                            console.log('📊 Database summary:');
-                                            console.log('📊 Total orders:', orders.length);
-                                            console.log('📊 Total qty in database:', totalQty);
-                                            console.log('📊 Total shipped in database:', totalShipped);
-                                            console.log('📊 Expected remaining:', 500 - totalShipped);
-                                            
-                                            // Check if UI matches database
-                                            const uiShipped = shippedToday ? parseInt(shippedToday.textContent) : 0;
-                                            const uiOnplan = onplan ? parseInt(onplan.textContent) : 0;
-                                            console.log('📊 UI vs Database comparison:');
-                                            console.log('📊 UI Shipped:', uiShipped, 'vs DB Shipped:', totalShipped);
-                                            console.log('📊 UI Onplan:', uiOnplan, 'vs DB Expected:', 500 - totalShipped);
-                                            
-                                            if (uiShipped !== totalShipped) {
-                                                console.log('❌ UI shipped count mismatch! Forcing UI refresh...');
-                                                updateDashboard();
-                                            }
-                                            if (uiOnplan !== (500 - totalShipped)) {
-                                                console.log('❌ UI onplan count mismatch! Forcing UI refresh...');
-                                                updateDashboard();
-                                            }
-                                        });
-                                    }, 500);
-                                    
-                                } catch (error) {
-                                    console.error('❌ Error updating UI:', error);
-                                }
-                            }).catch((error) => {
-                                console.error('❌ Error in database sync:', error);
-                                showToast('❌ Error syncing data from another user');
+                                    } catch (error) {
+                                        console.error('❌ Error updating UI:', error);
+                                    }
+                                }).catch((error) => {
+                                    console.error('❌ Error in database sync:', error);
+                                    showToast('❌ Error syncing data from another user');
+                                });
                             });
                         } else {
                             console.log('❌ No items to update in dispatch message');
