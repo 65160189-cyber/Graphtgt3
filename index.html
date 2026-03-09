@@ -1600,6 +1600,42 @@
                                         updateDashboard();
                                         console.log('✅ updateDashboard() completed');
                                         
+                                        // Force update UI elements directly
+                                        setTimeout(() => {
+                                            console.log('🔄 Force updating UI elements directly...');
+                                            
+                                            // Get current database state
+                                            db.orders.toArray().then(orders => {
+                                                const totalShipped = orders.reduce((sum, order) => sum + (order.shippedQty || 0), 0);
+                                                console.log('📊 Current total shipped from DB:', totalShipped);
+                                                
+                                                // Force update UI elements
+                                                const shippedElement = document.getElementById('stat-today-shipped');
+                                                const onplanElement = document.getElementById('stat-today-remaining');
+                                                
+                                                if (shippedElement) {
+                                                    console.log('🔄 Updating shipped element:', shippedElement.textContent, '->', totalShipped);
+                                                    shippedElement.textContent = totalShipped;
+                                                    shippedElement.style.color = 'red';
+                                                    setTimeout(() => {
+                                                        shippedElement.style.color = '';
+                                                    }, 1000);
+                                                }
+                                                
+                                                if (onplanElement) {
+                                                    const onplanValue = Math.max(0, 500 - totalShipped);
+                                                    console.log('🔄 Updating onplan element:', onplanElement.textContent, '->', onplanValue);
+                                                    onplanElement.textContent = onplanValue;
+                                                    onplanElement.style.color = 'red';
+                                                    setTimeout(() => {
+                                                        onplanElement.style.color = '';
+                                                    }, 1000);
+                                                }
+                                                
+                                                console.log('✅ Force UI update completed');
+                                            });
+                                        }, 100);
+                                        
                                         console.log('🔄 Calling updateDispatchList()...');
                                         updateDispatchList();
                                         console.log('✅ updateDispatchList() completed');
@@ -1649,11 +1685,13 @@
                                                 
                                                 if (uiShipped !== totalShipped) {
                                                     console.log('❌ UI shipped count mismatch! Forcing UI refresh...');
-                                                    updateDashboard();
+                                                    // Force update again
+                                                    shippedToday.textContent = totalShipped;
                                                 }
                                                 if (uiOnplan !== (500 - totalShipped)) {
                                                     console.log('❌ UI onplan count mismatch! Forcing UI refresh...');
-                                                    updateDashboard();
+                                                    // Force update again
+                                                    onplan.textContent = 500 - totalShipped;
                                                 }
                                             });
                                         }, 500);
@@ -1665,16 +1703,15 @@
                                     console.error('❌ Error in database sync:', error);
                                     showToast('❌ Error syncing data from another user');
                                 });
-                            });
-                        } else {
-                            console.log('❌ No items to update in dispatch message');
-                            // No items to update, just refresh UI
-                            updateDashboard();
-                            updateDispatchList();
-                            updateShipmentBar();
+                            } else {
+                                console.log('❌ No items to update in dispatch message');
+                                // No items to update, just refresh UI
+                                updateDashboard();
+                                updateDispatchList();
+                                updateShipmentBar();
+                            }
                         }
-                    }
-                    break;
+                        break;
                     
                 case 'client_count':
                     // Update connected users count
@@ -2126,6 +2163,10 @@
             const all = await db.orders.toArray();
             const logs = await db.history.toArray();
             
+            // คำนวณจาก shippedQty ใน orders table (ที่ถูกต้องสำหรับ multi-user)
+            const totalShippedQty = all.reduce((sum, order) => sum + (order.shippedQty || 0), 0);
+            
+            // คำนวณจาก history table (สำรอง - สำหรับตรวจสอบ)
             let shippedTodayQty = 0;
             let shippedTodayRounds = 0;
             const todayLogs = logs.filter(l => {
@@ -2142,13 +2183,16 @@
             const delayItems = all.filter(o => o.qty > 0 && o.deliveryDate < todayStr);
             const delayCount = delayItems.length;
 
-            document.getElementById('stat-today-shipped').innerText = shippedTodayQty;
+            // ใช้ค่าจาก orders table สำหรับ multi-user sync
+            document.getElementById('stat-today-shipped').innerText = totalShippedQty;
             document.getElementById('stat-overdue').innerText = delayCount;
-            document.getElementById('stat-today-remaining').innerText = Math.max(0, 500 - shippedTodayQty);
+            document.getElementById('stat-today-remaining').innerText = Math.max(0, 500 - totalShippedQty);
             document.getElementById('stat-total-load').innerText = all.reduce((sum, o) => sum + o.qty, 0);
 
             // แสดงจำนวนรอบที่ส่งใน console
             console.log(`วันนี้ส่งไป ${shippedTodayRounds} รอบ, จำนวน ${shippedTodayQty} ชิ้น`);
+            console.log(`Total shipped from orders: ${totalShippedQty} ชิ้น`);
+            console.log(`Dashboard calculation - Using orders table: ${totalShippedQty} vs History: ${shippedTodayQty}`);
             
             // แสดงรายการที่ส่งไปวันนี้
             const todayShippedItems = [];
