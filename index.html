@@ -1414,7 +1414,7 @@
         function initWebSocket() {
             try {
                 // Check if server is ready by making a simple HTTP request first
-                fetch('http://localhost:3001/api/status')
+                fetch('https://graphtgt3.onrender.com/api/status')
                     .then(() => {
                         // Server is ready, connect WebSocket
                         console.log('🌐 Server is ready, connecting WebSocket...');
@@ -1433,8 +1433,8 @@
         
         function connectWebSocket() {
             try {
-                // Connect to WebSocket server
-                const wsUrl = `ws://localhost:3001`;
+                // เปลี่ยนจาก ws://localhost:3001 เป็น wss:// ตามโดเมน Render ของคุณ
+                const wsUrl = 'wss://graphtgt3.onrender.com';
                 console.log('🔗 Connecting to:', wsUrl);
                 ws = new WebSocket(wsUrl);
                 
