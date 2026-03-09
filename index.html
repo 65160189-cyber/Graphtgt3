@@ -2126,10 +2126,6 @@
             const all = await db.orders.toArray();
             const logs = await db.history.toArray();
             
-            // คำนวณจาก shippedQty ใน orders table (ที่ถูกต้องสำหรับ multi-user)
-            const totalShippedQty = all.reduce((sum, order) => sum + (order.shippedQty || 0), 0);
-            
-            // คำนวณจาก history table (สำรอง)
             let shippedTodayQty = 0;
             let shippedTodayRounds = 0;
             const todayLogs = logs.filter(l => {
@@ -2146,16 +2142,13 @@
             const delayItems = all.filter(o => o.qty > 0 && o.deliveryDate < todayStr);
             const delayCount = delayItems.length;
 
-            // ใช้ค่าจาก orders table สำหรับ multi-user sync
-            document.getElementById('stat-today-shipped').innerText = totalShippedQty;
+            document.getElementById('stat-today-shipped').innerText = shippedTodayQty;
             document.getElementById('stat-overdue').innerText = delayCount;
-            document.getElementById('stat-today-remaining').innerText = Math.max(0, 500 - totalShippedQty);
+            document.getElementById('stat-today-remaining').innerText = Math.max(0, 500 - shippedTodayQty);
             document.getElementById('stat-total-load').innerText = all.reduce((sum, o) => sum + o.qty, 0);
 
             // แสดงจำนวนรอบที่ส่งใน console
             console.log(`วันนี้ส่งไป ${shippedTodayRounds} รอบ, จำนวน ${shippedTodayQty} ชิ้น`);
-            console.log(`Total shipped from orders: ${totalShippedQty} ชิ้น`);
-            console.log(`Dashboard calculation - Using orders table: ${totalShippedQty} vs History: ${shippedTodayQty}`);
             
             // แสดงรายการที่ส่งไปวันนี้
             const todayShippedItems = [];
