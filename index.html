@@ -1571,13 +1571,45 @@
                             Promise.all(updatePromises).then(() => {
                                 console.log('🔄 Database sync completed, updating UI...');
                                 
-                                // Update UI after database is synced
-                                updateDashboard();
-                                updateDispatchList();
-                                updateShipmentBar();
-                                
-                                showToast(`${data.items?.length || 0} items dispatched by another user`);
-                                console.log('✅ UI update completed');
+                                // Force UI update with debug
+                                try {
+                                    console.log('🔄 Calling updateDashboard()...');
+                                    updateDashboard();
+                                    console.log('✅ updateDashboard() completed');
+                                    
+                                    console.log('🔄 Calling updateDispatchList()...');
+                                    updateDispatchList();
+                                    console.log('✅ updateDispatchList() completed');
+                                    
+                                    console.log('🔄 Calling updateShipmentBar()...');
+                                    updateShipmentBar();
+                                    console.log('✅ updateShipmentBar() completed');
+                                    
+                                    // Force refresh the dispatch list container
+                                    const dispatchContainer = document.getElementById('dispatch-list-container');
+                                    if (dispatchContainer) {
+                                        console.log('🔄 Force refresh dispatch container...');
+                                        dispatchContainer.style.display = 'none';
+                                        setTimeout(() => {
+                                            dispatchContainer.style.display = 'block';
+                                        }, 100);
+                                    }
+                                    
+                                    showToast(`${data.items?.length || 0} items dispatched by another user`);
+                                    console.log('✅ UI update completed');
+                                    
+                                    // Log current stats after update
+                                    setTimeout(() => {
+                                        const shippedToday = document.getElementById('stat-today-shipped');
+                                        const onplan = document.getElementById('stat-today-remaining');
+                                        console.log('📊 Current stats after update:');
+                                        console.log('📊 Shipped Today:', shippedToday ? shippedToday.textContent : 'N/A');
+                                        console.log('📊 Onplan:', onplan ? onplan.textContent : 'N/A');
+                                    }, 500);
+                                    
+                                } catch (error) {
+                                    console.error('❌ Error updating UI:', error);
+                                }
                             }).catch((error) => {
                                 console.error('❌ Error in database sync:', error);
                                 showToast('❌ Error syncing data from another user');
