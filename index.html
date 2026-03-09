@@ -1605,6 +1605,34 @@
                                         console.log('📊 Current stats after update:');
                                         console.log('📊 Shipped Today:', shippedToday ? shippedToday.textContent : 'N/A');
                                         console.log('📊 Onplan:', onplan ? onplan.textContent : 'N/A');
+                                        
+                                        // Check database consistency
+                                        console.log('🔍 Checking database consistency...');
+                                        db.orders.toArray().then(orders => {
+                                            const totalQty = orders.reduce((sum, order) => sum + order.qty, 0);
+                                            const totalShipped = orders.reduce((sum, order) => sum + (order.shippedQty || 0), 0);
+                                            console.log('📊 Database summary:');
+                                            console.log('📊 Total orders:', orders.length);
+                                            console.log('📊 Total qty in database:', totalQty);
+                                            console.log('📊 Total shipped in database:', totalShipped);
+                                            console.log('📊 Expected remaining:', 500 - totalShipped);
+                                            
+                                            // Check if UI matches database
+                                            const uiShipped = shippedToday ? parseInt(shippedToday.textContent) : 0;
+                                            const uiOnplan = onplan ? parseInt(onplan.textContent) : 0;
+                                            console.log('📊 UI vs Database comparison:');
+                                            console.log('📊 UI Shipped:', uiShipped, 'vs DB Shipped:', totalShipped);
+                                            console.log('📊 UI Onplan:', uiOnplan, 'vs DB Expected:', 500 - totalShipped);
+                                            
+                                            if (uiShipped !== totalShipped) {
+                                                console.log('❌ UI shipped count mismatch! Forcing UI refresh...');
+                                                updateDashboard();
+                                            }
+                                            if (uiOnplan !== (500 - totalShipped)) {
+                                                console.log('❌ UI onplan count mismatch! Forcing UI refresh...');
+                                                updateDashboard();
+                                            }
+                                        });
                                     }, 500);
                                     
                                 } catch (error) {
