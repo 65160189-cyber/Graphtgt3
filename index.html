@@ -1512,8 +1512,11 @@
                 showToast('Failed to connect to multi-user server');
             }
         }
-                function handleWebSocketMessage(data) {
+        
+        function handleWebSocketMessage(data) {
             console.log('📨 Received WebSocket message:', data);
+            console.log('📨 Message type:', data.type);
+            console.log('📨 Message data:', JSON.stringify(data, null, 2));
             
             switch (data.type) {
                 case 'connection':
@@ -1523,49 +1526,70 @@
                     break;
                     
                 case 'dispatch_update':
+                    console.log('📦 Received dispatch update:', data);
+                    console.log('📦 Action:', data.action);
+                    console.log('📦 Items:', data.items);
+                    console.log('📦 Items length:', data.items ? data.items.length : 0);
+                    
                     // Another user dispatched items - update our UI
                     if (data.action === 'completed') {
                         console.log('📦 Another user completed dispatch:', data.items);
                         
-                        // Update local database with the dispatched items
+                        // Update local database with dispatched items
                         if (data.items && data.items.length > 0) {
-                            const updatePromises = data.items.map(async (item) => {
+                            console.log('📦 Starting database update for', data.items.length, 'items');
+                            
+                            const updatePromises = data.items.map(async (item, index) => {
+                                console.log(`📦 Processing item ${index + 1}:`, item);
+                                
                                 try {
                                     const order = await db.orders.get(item.orderId);
+                                    console.log(`📦 Found order for ${item.orderId}:`, order);
+                                    
                                     if (order) {
+                                        const newQty = order.qty - item.qty;
+                                        const newShippedQty = (order.shippedQty || 0) + item.qty;
+                                        
+                                        console.log(`📦 Updating order ${item.orderId}: ${order.qty} -> ${newQty}, shipped: ${order.shippedQty || 0} -> ${newShippedQty}`);
+                                        
                                         await db.orders.update(item.orderId, {
-                                            qty: order.qty - item.qty,
-                                            shippedQty: (order.shippedQty || 0) + item.qty
+                                            qty: newQty,
+                                            shippedQty: newShippedQty
                                         });
+                                        
                                         console.log(`✅ Updated order ${item.orderId}: -${item.qty} qty`);
+                                    } else {
+                                        console.log(`❌ Order ${item.orderId} not found in local database`);
                                     }
                                 } catch (error) {
-                                    console.error('Error updating local database:', error);
+                                    console.error('❌ Error updating local database:', error);
+                                    console.error('❌ Error details:', error.message);
                                 }
                             });
                             
                             // Wait for all database updates to complete
                             Promise.all(updatePromises).then(() => {
                                 console.log('🔄 Database sync completed, updating UI...');
+                                
                                 // Update UI after database is synced
                                 updateDashboard();
                                 updateDispatchList();
                                 updateShipmentBar();
+                                
                                 showToast(`${data.items?.length || 0} items dispatched by another user`);
+                                console.log('✅ UI update completed');
+                            }).catch((error) => {
+                                console.error('❌ Error in database sync:', error);
+                                showToast('❌ Error syncing data from another user');
                             });
                         } else {
+                            console.log('❌ No items to update in dispatch message');
                             // No items to update, just refresh UI
                             updateDashboard();
                             updateDispatchList();
                             updateShipmentBar();
-                            showToast('Dispatch update received');
                         }
                     }
-                    break;
-                    
-                case 'system_update':
-                    // General system updates
-                    console.log('🔄 System update:', data.data);
                     break;
                     
                 case 'client_count':
@@ -1575,7 +1599,7 @@
                     break;
                     
                 default:
-                    console.log('Unknown message type:', data.type);
+                    console.log('❌ Unknown message type:', data.type);
             }
         }
         
