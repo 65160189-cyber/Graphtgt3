@@ -1456,6 +1456,13 @@
                     // Show connection status in UI
                     showToast('🔗 เชื่อมต่อ Multi-User Server สำเร็จ');
                     
+                    // Add connection indicator
+                    const indicator = document.createElement('div');
+                    indicator.id = 'connection-indicator';
+                    indicator.className = 'fixed top-4 right-4 bg-green-500 text-white px-3 py-1 rounded-full text-xs font-black z-50';
+                    indicator.textContent = '🟢 Multi-User Connected';
+                    document.body.appendChild(indicator);
+                    
                     // Send heartbeat every 30 seconds
                     setInterval(() => {
                         if (ws && ws.readyState === WebSocket.OPEN) {
@@ -1476,6 +1483,12 @@
                 
                 ws.onclose = function() {
                     console.log('❌ Disconnected from server');
+                    
+                    // Remove connection indicator
+                    const indicator = document.getElementById('connection-indicator');
+                    if (indicator) {
+                        indicator.remove();
+                    }
                     
                     // Attempt to reconnect
                     if (reconnectAttempts < maxReconnectAttempts) {
