@@ -1437,14 +1437,10 @@
                 // Connect to WebSocket server
                 const wsUrl = 'wss://graphtgt3.onrender.com';
                 console.log('🔗 Connecting to:', wsUrl);
-                console.log('🔗 WebSocket state before:', ws ? ws.readyState : 'null');
-                
                 ws = new WebSocket(wsUrl);
-                console.log('🔗 WebSocket created, state:', ws.readyState);
                 
                 // Set connection timeout
                 const connectionTimeout = setTimeout(() => {
-                    console.log('⏰ Connection timeout, current state:', ws.readyState);
                     if (ws.readyState === WebSocket.CONNECTING) {
                         console.log('⏰ Connection timeout, closing...');
                         ws.close();
@@ -1453,7 +1449,6 @@
                 }, 5000);
                 
                 ws.onopen = function() {
-                    console.log('🔗 WebSocket onopen triggered, state:', ws.readyState);
                     clearTimeout(connectionTimeout);
                     console.log('🔗 Connected to TGT3 Multi-User Server');
                     reconnectAttempts = 0;
@@ -1464,25 +1459,13 @@
                     // Send heartbeat every 30 seconds
                     setInterval(() => {
                         if (ws && ws.readyState === WebSocket.OPEN) {
-                            console.log('💓 Sending heartbeat...');
                             ws.send(JSON.stringify({ type: 'heartbeat' }));
                         }
                     }, 30000);
                 };
                 
-                ws.onmessage = function(event) {
-                    console.log('📨 WebSocket message received:', event.data);
-                    try {
-                        const data = JSON.parse(event.data);
-                        console.log('📨 Parsed message:', data);
-                        handleWebSocketMessage(data);
-                    } catch (error) {
-                        console.error('❌ Error parsing WebSocket message:', error);
-                    }
-                };
-                
-                ws.onclose = function(event) {
-                    console.log('❌ WebSocket closed, code:', event.code, 'reason:', event.reason);
+                ws.onclose = function() {
+                    console.log('❌ Disconnected from server');
                     
                     // Attempt to reconnect
                     if (reconnectAttempts < maxReconnectAttempts) {
@@ -1497,14 +1480,13 @@
                 };
                 
                 ws.onerror = function(error) {
-                    console.error('❌ WebSocket error:', error);
-                    console.log('❌ WebSocket error details:', error);
+                    console.error('WebSocket error:', error);
                     showToast('❌ เกิดข้อผิดพลาดในการเชื่อมต่อ');
                 };
                 
             } catch (error) {
-                console.error('❌ Error in connectWebSocket:', error);
-                showToast('❌ ไม่สามารถเชื่อมต่อได้');
+                console.error('Failed to initialize WebSocket:', error);
+                showToast('Failed to connect to multi-user server');
             }
         }
         
